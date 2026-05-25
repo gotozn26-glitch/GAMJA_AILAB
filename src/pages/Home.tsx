@@ -1,363 +1,676 @@
-import { motion } from 'motion/react';
-import { ArrowRight, ChevronRight } from 'lucide-react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const ASSET_BASE = '/page1/image';
+const POPUP_ASSET_BASE = '/page-pop/image';
+const DESIGN_WIDTH = 1920;
+const DESIGN_HEIGHT = 4173;
+const POPUP_WIDTH = 1562;
+const POPUP_HEIGHT = 997;
 
-type HomeCard = {
-  key: string;
+type PopupKey = 'rotation' | 'object-creator' | 'logo-maker' | 'scene-creator';
+
+type PopupConfig = {
+  key: PopupKey;
   title: string;
-  desc: string;
-  background: string;
-  illustration?: string;
-  badge?: string;
-  to?: string;
-  dark?: boolean;
-  customIllustration?: 'text-swap';
+  route: string;
+  mask: string;
+  preview: string;
+  previewStyle: CSSProperties;
+  titleLeft: number;
+  description: string;
+  buttonBackground: string;
+  buttonIcon: string;
+  buttonIconStyle: CSSProperties;
 };
 
-const tools: HomeCard[] = [
-  {
+const popupConfigs: Record<PopupKey, PopupConfig> = {
+  rotation: {
     key: 'rotation',
     title: 'Rotation',
-    desc: '오브젝트를 정교하게 회전시킵니다',
-    background: `${ASSET_BASE}/014-2.svg`,
-    illustration: `${ASSET_BASE}/016-icon_rotaiton.png`,
-    to: '/service/multiview',
+    route: '/service/multiview',
+    mask: '002-Mask-group.svg',
+    preview: '004-icon_rotaiton.png',
+    previewStyle: abs(206, 142, 274, 235),
+    titleLeft: 640,
+    description: `2D 이미지나 캐릭터를 원하는 각도로 회전시켜 입체적인 오브젝트로 생성해주는 도구입니다.
+평면 이미지를 업로드한 뒤 3D 투영 좌표를 설정하면,
+원하는 앵글과 정밀한 각도(하이 앵글, 반측면 등)가 반영된 입체적인 결과물을 빠르게 얻을 수 있습니다.
+초기 기획 단계에서 캐릭터나 제품의 다각도 뷰를 검토하거나,
+3D 모델링 전 에셋의 볼륨감을 미리 시각화할 때 유용합니다.
+복잡한 3D 그래픽 툴이 없어도 평면 이미지를 입체감 있는 비주얼로 간편하게 전환할 수 있습니다.`,
+    buttonBackground: '005-2.svg',
+    buttonIcon: '007-2.png',
+    buttonIconStyle: abs(32, 15, 29, 40),
   },
-  {
+  'object-creator': {
     key: 'object-creator',
     title: 'Object Creator',
-    desc: '오브젝트를 생성합니다',
-    background: `${ASSET_BASE}/018-2.svg`,
-    illustration: `${ASSET_BASE}/019-icon_object.png`,
-    to: '/service/creator-object',
+    route: '/service/creator-object',
+    mask: '009-Mask-group.svg',
+    preview: '010-icon_object.png',
+    previewStyle: abs(238, 141, 211, 228),
+    titleLeft: 640,
+    description: `특정 텍스처와 스타일로 오브젝트를 빠르게 생성해주는 도구입니다.
+원하는 키워드를 입력하거나 레퍼런스 이미지를 업로드한 뒤,
+제공되는 스타일 프리셋(패브릭 토이, 유리&홀로그램, 3D 클레이 등)을 선택해 즉시 생성할 수 있습니다.
+번거로운 텍스처링이나 복잡한 렌더링 세팅 과정 없이도 클릭 몇 번만으로
+완성도 높은 스타일의 비주얼을 구현합니다.`,
+    buttonBackground: '011-2.svg',
+    buttonIcon: '007-2.png',
+    buttonIconStyle: abs(32, 15, 29, 40),
   },
-  {
-    key: 'upscaler',
-    title: 'UpScaler',
-    desc: '화질을 더 선명하게 업스케일 합니다',
-    background: `${ASSET_BASE}/022-2.svg`,
-    illustration: `${ASSET_BASE}/024-9.png`,
-  },
-  {
+  'logo-maker': {
     key: 'logo-maker',
     title: '로고작업실',
-    desc: '서비스에 맞는 로고를 제작합니다',
-    background: `${ASSET_BASE}/026-2.svg`,
-    illustration: `${ASSET_BASE}/027-Mask-group.svg`,
-    to: '/service/logo-maker',
+    route: '/service/logo-maker',
+    mask: '018-Mask-group.svg',
+    preview: '019-logo-variation-01.png',
+    previewStyle: abs(199, 115, 299, 299),
+    titleLeft: 639,
+    description: `브랜드나 서비스에 맞는 로고 시안을 빠르게 만들어볼 수 있는 로고작업실입니다.
+원하는 키워드와 분위기를 프롬프트에 입력하면 다양한 방향의 로고 아이디어를 확인할 수 있습니다.
+초기 기획 단계에서 로고 콘셉트를 잡거나 시안을 비교할 때 유용합니다.
+복잡한 디자인 툴 없이도 간단하게 브랜드 이미지를 시각화할 수 있습니다.
+로고 제작 전 아이디어를 넓히고 방향성을 정리하는 데 도움을 주는 도구입니다.`,
+    buttonBackground: '020-2.svg',
+    buttonIcon: '015-8.png',
+    buttonIconStyle: abs(32, 16, 28, 38),
   },
-  {
-    key: 'text-swap',
-    title: '의자뺏기',
-    desc: '텍스트 검수 및 텍스트를 교체합니다',
-    background: `${ASSET_BASE}/029-2.svg`,
-    customIllustration: 'text-swap',
+  'scene-creator': {
+    key: 'scene-creator',
+    title: 'Scene Creator',
+    route: '/service/storyboard-director',
+    mask: '035-Mask-group.svg',
+    preview: '036-icon_sb.png',
+    previewStyle: abs(222, 124, 241, 270),
+    titleLeft: 640,
+    description: `스케치 콘티를 기반으로 콘셉트에 맞는 완성도 높은 장면 이미지를 빠르게 생성해주는 도구입니다.
+준비된 스케치를 업로드하고 원하는 씬 스타일을 선택하면, 원본의 레이아웃과 구도를 그대로 유지한 채
+감각적인 비주얼로 시각화합니다.
+특히 콘티 내 특정 오브젝트를 지정해 별도의 레퍼런스를 첨부할 수 있어, 주요 에셋의 디테일과 재질을
+더욱 정확하고 정교하게 표현할 수 있습니다.
+복잡한 드로잉이나 채색 작업 없이도 초기 아이디어 단계에서 완성도 높은 장면을 만들어 냅니다.`,
+    buttonBackground: '037-2.svg',
+    buttonIcon: '007-2.png',
+    buttonIconStyle: abs(32, 15, 29, 40),
   },
-  {
-    key: 'camera-prompt',
-    title: '봉준호',
-    desc: '카메라 앵글에 대한 프롬프트를 알려줍니다',
-    background: `${ASSET_BASE}/037-2.svg`,
-    illustration: `${ASSET_BASE}/038-Group-3.svg`,
-  },
-  {
-    key: 'scene-creteor',
-    title: 'Scene Creteor',
-    desc: '스토리보드로 장면을 생성합니다',
-    background: `${ASSET_BASE}/040-2.svg`,
-    illustration: `${ASSET_BASE}/042-icon_sb.png`,
-    badge: `${ASSET_BASE}/044-beta.svg`,
-    to: '/service/storyboard-director',
-  },
-];
+};
 
 const labcordPosts = [
-  '‘UpScaler’ 인식 불가한 부분까지 인식하게 만들어 업스케일 구현 - 영채 연구원',
-  '클링 3.0 흔들림 방지와 보정 방법 - 감쟈 연구원',
-  '감쟈&영채 vs 제미나이&GPT 토론 배틀 (a.k.a. AI와 싸운 썰) - 감쟈,영채 연구원',
-  '미래 도시 ‘무한’, 그곳은 어디인가? 감자 연구소 ‘무한’ 워크샵 이야기 - 감쟈 연구원',
-  '나도 모르는 카메라 앵글 용어를 AI에게 학습시킨 노하우 - 영경 연구원',
-  'AI가 제대로 구현하지 못하는 물리, “Rotation”은 어떻게? - 감쟈 연구원',
-  '감정컨트롤 보조도구로써의 AI 활용의 건 - 영채 연구원',
+  '감쟈님 블로그 포스트는 써보셨나 AI 활용법기 - 영경 연구원님',
+  'AI가 제대로 구현하지 못하는 물리, "Rotation"은 어떻게? - 감쟈 연구원님',
+  '나도 모르는 카메라 앵글 용어를 AI가 모르는 단어로 설명? - 영경 연구원님',
+  "미래 도시 ‘무한', 그것은 어디인가? 감자 연구소 '무한' 워크샵 이야기 - 감쟈 연구원님",
+  '감정컨트롤 AI via 개발과 PoC/PTT 후딱 하는 법 (a.k.a. AI와 싸운 썰) - 감자, 영채 연구원님',
+  '클링 3.0 흔들림 방지 및 보정 방법 - 감쟈 연구원님',
+  "'UpScaler' 인식 불가한 부분까지 인식하게 만들어 업스케일 구현 - 영채 연구원님",
 ];
 
-const supporters = [
-  { label: 'Figma', desc: '맞춤 용량 추출 도우미', accent: '#b58aff', chip: '#f1ddff' },
-  { label: 'After Effect', desc: '맞춤 용량 추출 도우미', accent: '#00aff7', chip: '#d7f4ff' },
-  { label: 'Photoshop', desc: '맞춤 용량 추출 도우미', accent: '#00d46b', chip: '#d9ffe9' },
-  { label: 'Illustrator', desc: '맞춤 용량 추출 도우미', accent: '#ff5c08', chip: '#ffe3d1' },
-  { label: 'Office', desc: '맞춤 용량 추출 도우미', accent: '#ff001e', chip: '#ffdfe5' },
-  { label: 'Etc', desc: '맞춤 용량 추출 도우미', accent: '#ffffff', chip: '#2c2c31', dark: true },
+const supporterCards = [
+  { bg: '005-6.svg', chip: '006-7.svg', label: 'Figma', accent: '#b58aff', x: 240, y: 3310 },
+  { bg: '008-6.svg', chip: '009-7.svg', label: 'After Effect', accent: '#00aff7', x: 733, y: 3309 },
+  { bg: '010-6.svg', chip: '009-7.svg', label: 'Photoshop', accent: '#00d46b', x: 1225, y: 3307 },
+  { bg: '011-6.svg', chip: '006-7.svg', label: 'Illustrator', accent: '#ff5c08', x: 240, y: 3512 },
+  { bg: '012-6.svg', chip: '009-7.svg', label: 'Office', accent: '#ff001e', x: 733, y: 3514 },
+  { bg: '013-6.svg', chip: '009-7.svg', label: 'Etc', accent: '#ffffff', x: 1225, y: 3512, dark: true },
 ];
 
-function ToolIllustration({ tool }: { tool: HomeCard }) {
-  if (tool.customIllustration === 'text-swap') {
-    return (
-      <div className="relative flex h-[124px] w-full max-w-[320px] items-center justify-center overflow-hidden rounded-[26px] border border-black/10 bg-black/4">
-        <div className="absolute inset-x-5 top-3 h-[4px] rounded-full bg-black" />
-        <div className="absolute inset-x-6 top-7 h-[4px] rounded-full bg-black/45" />
-        <div className="absolute inset-x-6 bottom-7 h-[4px] rounded-full bg-black/45" />
-        <div className="absolute inset-x-5 bottom-3 h-[4px] rounded-full bg-black" />
-        <div className="absolute bottom-1 left-4 h-4 w-4 rounded-full bg-black" />
-        <div className="absolute right-4 top-1 h-4 w-4 rounded-full bg-black" />
-        <div className="relative bg-white/20 px-6 py-2 text-[48px] font-medium tracking-[-0.08em] text-black/90">
-          TEXT
-        </div>
+function abs(left: number, top: number, width: number, height: number): CSSProperties {
+  return { position: 'absolute', left, top, width, height };
+}
+
+function DecoImage({
+  src,
+  alt = '',
+  style,
+  className = '',
+}: {
+  src: string;
+  alt?: string;
+  style: CSSProperties;
+  className?: string;
+}) {
+  return <img src={src} alt={alt} style={style} className={className} draggable={false} />;
+}
+
+function NavOverlay({
+  label,
+  left,
+  top,
+  width,
+  height,
+  onClick,
+}: {
+  label: string;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      style={{ ...abs(left, top, width, height), background: 'transparent' }}
+      className="z-20 cursor-pointer"
+    />
+  );
+}
+
+function TextSwapIllustration() {
+  return (
+    <div style={abs(769, 1466, 376, 120)} className="pointer-events-none">
+      <div className="absolute left-0 top-[35px] h-[4px] w-[374px] bg-black" />
+      <div className="absolute left-[1px] top-[59px] h-[4px] w-[375px] bg-black/50" />
+      <div className="absolute left-[1px] top-[12px] h-[4px] w-[375px] bg-black/50" />
+      <div className="absolute left-[1px] top-[105px] h-[4px] w-[375px] bg-black/50" />
+      <div className="absolute left-0 top-[82px] h-[4px] w-[374px] bg-black" />
+      <div className="absolute left-[40px] top-[3px] h-[17px] w-[17px] rounded-full bg-black" />
+      <div className="absolute left-[319px] top-[103px] h-[17px] w-[17px] rounded-full bg-black" />
+      <div className="absolute left-[49px] top-[13px] h-[91px] w-[279px] bg-black/10" />
+      <div className="absolute left-[49px] top-[15px] h-[91px] w-[6px] bg-black" />
+      <div className="absolute left-[328px] top-[12px] h-[91px] w-[6px] bg-black" />
+      <div className="absolute left-[73px] top-0 text-[100px] leading-none tracking-[-2.5px] text-black">
+        TEXT
       </div>
-    );
-  }
+    </div>
+  );
+}
 
-  if (!tool.illustration) {
-    return null;
-  }
+function SupporterCard({
+  bg,
+  chip,
+  label,
+  accent,
+  x,
+  y,
+  dark,
+}: {
+  bg: string;
+  chip: string;
+  label: string;
+  accent: string;
+  x: number;
+  y: number;
+  dark?: boolean;
+}) {
+  return (
+    <>
+      <DecoImage src={`${ASSET_BASE}/${bg}`} style={abs(x, y, 455, 190)} />
+      <DecoImage src={`${ASSET_BASE}/${chip}`} style={abs(x + 31, y + 10, 221, 65)} />
+      <div
+        style={{
+          ...abs(x + 49, y, 220, 76),
+          color: accent,
+          textAlign: 'center',
+          fontSize: 30,
+          fontWeight: 700,
+          lineHeight: '84px',
+          letterSpacing: '-0.55px',
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          ...abs(x + (label === 'Figma' ? 76 : label === 'After Effect' ? 53 : label === 'Photoshop' ? 32 : label === 'Illustrator' ? 49 : label === 'Office' ? 52 : 32), y + 81, 281, 76),
+          color: '#000',
+          textAlign: label === 'Figma' ? 'left' : 'center',
+          fontSize: 25,
+          fontWeight: 700,
+          lineHeight: '84px',
+          letterSpacing: '-0.46px',
+        }}
+      >
+        맞춤 용량 추출 도우미
+      </div>
+      <DecoImage src={`${ASSET_BASE}/007-Group-2.svg`} style={abs(x + 349, y + 92, 65, 64)} />
+      {dark ? (
+        <div style={{ ...abs(x + 32, y, 216, 76), background: '#000', opacity: 0.05 }} />
+      ) : null}
+    </>
+  );
+}
+
+function PopupModal({
+  popup,
+  onClose,
+  onStart,
+}: {
+  popup: PopupConfig;
+  onClose: () => void;
+  onStart: () => void;
+}) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const updateScale = () => {
+      const width = wrapperRef.current?.clientWidth || POPUP_WIDTH;
+      setScale(Math.min(width / POPUP_WIDTH, 1));
+    };
+
+    updateScale();
+
+    if (typeof ResizeObserver !== 'undefined' && wrapperRef.current) {
+      const observer = new ResizeObserver(updateScale);
+      observer.observe(wrapperRef.current);
+      return () => observer.disconnect();
+    }
+
+    window.addEventListener('resize', updateScale);
+    return () => window.removeEventListener('resize', updateScale);
+  }, []);
 
   return (
-    <img
-      src={tool.illustration}
-      alt={tool.title}
-      className="max-h-[196px] w-auto max-w-[78%] object-contain drop-shadow-[0_12px_30px_rgba(0,0,0,0.08)]"
-      loading="lazy"
-    />
+    <div
+      className="fixed inset-0 z-50 bg-black/35"
+      onClick={onClose}
+      role="presentation"
+    >
+      <div className="flex min-h-full items-center justify-center p-4 md:p-6">
+        <div
+          ref={wrapperRef}
+          style={{ width: 'min(92vw, 980px)', height: POPUP_HEIGHT * scale }}
+          className="relative"
+        >
+          <div
+            className="relative origin-top-left"
+            style={{
+              width: POPUP_WIDTH,
+              height: POPUP_HEIGHT,
+              transform: `scale(${scale})`,
+            }}
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label={popup.title}
+          >
+            <div
+              className="absolute inset-0 overflow-hidden rounded-[30px] border-[3px] border-black bg-white"
+              style={{
+                boxShadow: '-6px 8px 0 rgba(0, 0, 0, 0.3)',
+              }}
+            >
+              <DecoImage src={`${POPUP_ASSET_BASE}/${popup.mask}`} style={abs(0, 0, POPUP_WIDTH, POPUP_HEIGHT)} />
+            </div>
+
+            <button
+              type="button"
+              onClick={onClose}
+              style={{ ...abs(1454, 37, 72, 72), background: 'transparent' }}
+              className="cursor-pointer"
+              aria-label="팝업 닫기"
+            >
+              <DecoImage src={`${POPUP_ASSET_BASE}/003-1.svg`} style={abs(0, 0, 72, 72)} />
+            </button>
+
+            <DecoImage src={`${POPUP_ASSET_BASE}/${popup.preview}`} style={popup.previewStyle} />
+
+            <div
+              style={{
+                ...abs(popup.titleLeft, 120, 420, 38),
+                fontSize: 32,
+                fontWeight: 700,
+                letterSpacing: '-1.41px',
+                lineHeight: 'normal',
+                color: '#000',
+              }}
+            >
+              {popup.title}
+            </div>
+
+            <div
+              style={{
+                ...abs(639, 187, 760, 305),
+                fontSize: 20,
+                fontWeight: 400,
+                lineHeight: '160%',
+                letterSpacing: '-0.88px',
+                color: '#000',
+                whiteSpace: 'pre-line',
+              }}
+            >
+              {popup.description}
+            </div>
+
+            <button
+              type="button"
+              onClick={onStart}
+              style={{ ...abs(1111, 405, 299, 72), background: 'transparent' }}
+              className="cursor-pointer"
+              aria-label={`${popup.title} 시작하기`}
+            >
+              <DecoImage src={`${POPUP_ASSET_BASE}/${popup.buttonBackground}`} style={abs(0, 0, 299, 72)} />
+              <div
+                style={{
+                  ...abs(68, 25, 110, 25),
+                  fontSize: 25,
+                  fontWeight: 700,
+                  letterSpacing: '-1.1px',
+                  lineHeight: 'normal',
+                  color: '#000',
+                }}
+              >
+                시작하기
+              </div>
+              <DecoImage src={`${POPUP_ASSET_BASE}/006-6.svg`} style={abs(202, 28, 69, 19)} />
+              <DecoImage src={`${POPUP_ASSET_BASE}/${popup.buttonIcon}`} style={popup.buttonIconStyle} />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
 export default function Home() {
   const navigate = useNavigate();
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  const [openPopup, setOpenPopup] = useState<PopupKey | null>(null);
+
+  useEffect(() => {
+    const updateScale = () => {
+      const width = wrapperRef.current?.clientWidth || DESIGN_WIDTH;
+      setScale(Math.min(width / DESIGN_WIDTH, 1));
+    };
+
+    updateScale();
+
+    if (typeof ResizeObserver !== 'undefined' && wrapperRef.current) {
+      const observer = new ResizeObserver(updateScale);
+      observer.observe(wrapperRef.current);
+      return () => observer.disconnect();
+    }
+
+    window.addEventListener('resize', updateScale);
+    return () => window.removeEventListener('resize', updateScale);
+  }, []);
+
+  useEffect(() => {
+    if (!openPopup) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpenPopup(null);
+      }
+    };
+
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [openPopup]);
+
+  const currentPopup = openPopup ? popupConfigs[openPopup] : null;
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#eef1ef] text-[#0b0f1a]">
+    <div className="min-h-screen bg-white">
       <div
-        className="absolute inset-x-0 top-0 h-[1180px] bg-top bg-no-repeat opacity-95"
-        style={{
-          backgroundImage: `url(${ASSET_BASE}/001-bg.svg)`,
-          backgroundSize: 'cover',
-        }}
-      />
-
-      <main className="relative mx-auto flex w-full max-w-[1520px] flex-col gap-14 px-4 pb-12 pt-4 md:px-8 md:pb-20 md:pt-8">
-        <section className="relative overflow-hidden rounded-[44px] px-6 pb-8 pt-8 md:min-h-[820px] md:px-14 md:pb-16 md:pt-12">
-          <img
-            src={`${ASSET_BASE}/002-1.png`}
-            alt=""
-            aria-hidden="true"
-            className="pointer-events-none absolute right-[4%] top-8 hidden w-[520px] max-w-[38vw] select-none md:block"
-          />
-          <img
-            src={`${ASSET_BASE}/003-0.png`}
-            alt=""
-            aria-hidden="true"
-            className="pointer-events-none absolute left-[58%] top-5 hidden w-[400px] max-w-[30vw] -translate-x-1/2 select-none md:block"
-          />
-
-          <div className="relative z-10 flex max-w-[760px] flex-col gap-6 pt-4 md:pt-10">
-            <div className="inline-flex w-fit items-center rounded-full border border-black/10 bg-white/60 px-4 py-2 text-xs font-bold tracking-[0.22em] text-black/55 uppercase backdrop-blur-sm">
-              GAMJA AI LAB
-            </div>
-
-            <div className="space-y-2">
-              <img
-                src={`${ASSET_BASE}/051-Gamjas.svg`}
-                alt="Gamjas"
-                className="h-auto w-[220px] md:w-[320px]"
-              />
-              <img
-                src={`${ASSET_BASE}/050-AI-LAB.svg`}
-                alt="AI LAB"
-                className="h-auto w-full max-w-[720px]"
-              />
-              <img
-                src={`${ASSET_BASE}/052-SINCE-2026.png`}
-                alt="Since 2026"
-                className="h-auto w-[120px] md:w-[176px]"
-              />
-            </div>
-
-            <p className="max-w-[520px] text-sm font-medium leading-7 text-black/60 md:text-lg md:leading-8">
-              감쟈 연구소의 메인 화면을 새 디자인 기준으로 구성했습니다. 아래 카드에서
-              Rotation, LogoMaker, CreatorObject, StoryboardDirector로 바로 이동할 수 있습니다.
-            </p>
-          </div>
-        </section>
-
-        <section className="relative">
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {tools.map((tool, idx) => {
-              const clickable = Boolean(tool.to);
-              return (
-                <motion.button
-                  key={tool.key}
-                  type="button"
-                  disabled={!clickable}
-                  onClick={() => clickable && navigate(tool.to!)}
-                  initial={{ opacity: 0, y: 18 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.05 }}
-                  className={[
-                    'group relative h-[304px] overflow-hidden rounded-[34px] border border-black/8 p-0 text-left shadow-[0_20px_50px_rgba(0,0,0,0.08)]',
-                    clickable ? 'cursor-pointer' : 'cursor-default',
-                  ].join(' ')}
-                >
-                  <img
-                    src={tool.background}
-                    alt=""
-                    aria-hidden="true"
-                    className="absolute inset-0 h-full w-full object-cover"
-                  />
-                  {tool.badge ? (
-                    <img
-                      src={tool.badge}
-                      alt=""
-                      aria-hidden="true"
-                      className="absolute left-4 top-4 h-6 w-auto"
-                    />
-                  ) : null}
-
-                  <div className="relative z-10 flex h-full flex-col px-5 pb-4 pt-5">
-                    <div className="flex flex-1 items-center justify-center">
-                      <ToolIllustration tool={tool} />
-                    </div>
-
-                    <div className="space-y-1">
-                      <div className="text-[28px] font-extrabold tracking-[-0.05em] text-black">
-                        {tool.title}
-                      </div>
-                      <div className="text-[18px] font-medium leading-snug tracking-[-0.04em] text-black/72">
-                        {tool.desc}
-                      </div>
-                    </div>
-
-                    <div className="mt-4 flex items-center justify-between">
-                      <span className="text-[11px] font-black tracking-[0.24em] text-black/35 uppercase">
-                        {clickable ? 'ready' : 'coming soon'}
-                      </span>
-                      <span
-                        className={[
-                          'flex h-10 w-10 items-center justify-center rounded-full border border-black/8 bg-white/65 text-black transition-all',
-                          clickable ? 'group-hover:bg-black group-hover:text-white' : 'opacity-60',
-                        ].join(' ')}
-                      >
-                        <ArrowRight className="h-4 w-4" />
-                      </span>
-                    </div>
-                  </div>
-                </motion.button>
-              );
-            })}
-          </div>
-        </section>
-
-        <section className="overflow-hidden rounded-[44px] border border-black/8 bg-[#f5f3ea] px-5 py-6 shadow-[0_24px_60px_rgba(0,0,0,0.06)] md:px-10 md:py-10">
-          <div className="mb-6 flex items-center justify-between gap-4">
-            <img
-              src={`${ASSET_BASE}/048-LABcord.png`}
-              alt="LABcord"
-              className="h-auto w-[170px] md:w-[234px]"
-            />
-            <button
-              type="button"
-              className="inline-flex items-center gap-1 rounded-full bg-white/70 px-4 py-2 text-sm font-semibold text-black/60"
-            >
-              더보기 <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-
-          <div
-            className="rounded-[32px] border border-black/8 bg-white/35 px-4 py-4 md:px-8 md:py-8"
-            style={{
-              backgroundImage: `url(${ASSET_BASE}/046-frame.svg)`,
-              backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat',
-              backgroundSize: 'cover',
-            }}
-          >
-            <div className="space-y-3">
-              {labcordPosts.map((post) => (
-                <div
-                  key={post}
-                  className="flex flex-col gap-2 rounded-[22px] border-b border-black/8 py-4 last:border-b-0 md:flex-row md:items-start md:justify-between md:gap-8"
-                >
-                  <div className="text-base font-semibold tracking-[-0.04em] text-black/88 md:text-[26px] md:leading-[1.25]">
-                    {post}
-                  </div>
-                  <div className="shrink-0 text-sm font-medium text-black/45 md:pt-1 md:text-2xl">
-                    26.05.21
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="overflow-hidden rounded-[44px] border border-black/8 bg-[#f4f1e8] px-5 py-6 shadow-[0_24px_60px_rgba(0,0,0,0.05)] md:px-10 md:py-10">
-          <img
-            src={`${ASSET_BASE}/004-Tool-Supporter.png`}
-            alt="Tool Supporter"
-            className="mb-7 h-auto w-[220px] md:w-[354px]"
-          />
-
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3">
-            {supporters.map((item) => (
-              <div
-                key={item.label}
-                className="relative min-h-[168px] overflow-hidden rounded-[26px] border border-black/8 bg-white px-6 py-5 shadow-[0_14px_35px_rgba(0,0,0,0.05)]"
-              >
-                <div
-                  className="inline-flex items-center rounded-[20px] px-5 py-2 text-2xl font-bold tracking-[-0.04em]"
-                  style={{
-                    backgroundColor: item.chip,
-                    color: item.dark ? '#ffffff' : item.accent,
-                  }}
-                >
-                  {item.label}
-                </div>
-                <p className="mt-6 max-w-[220px] text-xl font-bold tracking-[-0.04em] text-black/85">
-                  {item.desc}
-                </p>
-                <div
-                  className="absolute bottom-5 right-5 flex h-14 w-14 items-center justify-center rounded-full"
-                  style={{
-                    backgroundColor: item.dark ? '#ffffff' : item.accent,
-                    color: item.dark ? '#0b0f1a' : '#ffffff',
-                  }}
-                >
-                  <ChevronRight className="h-7 w-7" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <footer
-          className="relative overflow-hidden rounded-[44px] px-6 py-14 text-white md:px-10 md:py-20"
+        ref={wrapperRef}
+        className="mx-auto w-full max-w-[1920px]"
+        style={{ height: DESIGN_HEIGHT * scale }}
+      >
+        <div
+          className="relative origin-top-left overflow-hidden bg-white"
           style={{
-            backgroundColor: '#0a0d12',
-            backgroundImage: `url(${ASSET_BASE}/049-asset.svg)`,
-            backgroundPosition: 'center bottom',
-            backgroundRepeat: 'no-repeat',
-            backgroundSize: 'cover',
+            width: DESIGN_WIDTH,
+            height: DESIGN_HEIGHT,
+            transform: `scale(${scale})`,
           }}
         >
-          <div className="relative z-10 flex flex-col items-center justify-center gap-2 text-center">
-            <img
-              src={`${ASSET_BASE}/051-Gamjas.svg`}
-              alt="Gamjas"
-              className="h-auto w-[180px] invert md:w-[260px]"
-            />
-            <img
-              src={`${ASSET_BASE}/050-AI-LAB.svg`}
-              alt="AI LAB"
-              className="h-auto w-full max-w-[620px] invert"
-            />
-            <img
-              src={`${ASSET_BASE}/052-SINCE-2026.png`}
-              alt="Since 2026"
-              className="mt-2 h-auto w-[120px] opacity-80 md:w-[160px]"
-            />
+          <DecoImage src={`${ASSET_BASE}/001-bg.svg`} style={abs(-92, 0, 2127, 4320)} />
+          <DecoImage src={`${ASSET_BASE}/002-1.png`} style={abs(705, 223, 771, 742)} />
+          <DecoImage src={`${ASSET_BASE}/003-0.png`} style={abs(647, 227, 604, 570)} />
+          <DecoImage src={`${ASSET_BASE}/050-AI-LAB.svg`} style={abs(552, 486, 816, 218)} />
+          <DecoImage src={`${ASSET_BASE}/051-Gamjas.svg`} style={abs(864, 398, 286, 69)} />
+          <DecoImage src={`${ASSET_BASE}/052-SINCE-2026.png`} style={abs(903, 706, 175, 20)} />
+
+          <DecoImage src={`${ASSET_BASE}/014-2.svg`} style={abs(240, 1049, 454, 304)} />
+          <DecoImage src={`${ASSET_BASE}/015-btn.svg`} style={abs(641, 1299, 38, 38)} />
+          <DecoImage src={`${ASSET_BASE}/016-icon_rotaiton.png`} style={abs(330, 1060, 274, 235)} />
+          <DecoImage src={`${ASSET_BASE}/017-Rotation.svg`} style={abs(403, 1268, 127, 31)} />
+          <div
+            style={{
+              ...abs(336, 1303, 285, 26),
+              fontSize: 20,
+              fontWeight: 500,
+              letterSpacing: '-0.88px',
+              lineHeight: 'normal',
+            }}
+          >
+            오브젝트를 정교하게 회전시킵니다
           </div>
-        </footer>
-      </main>
+
+          <DecoImage src={`${ASSET_BASE}/018-2.svg`} style={abs(730, 1049, 454, 304)} />
+          <DecoImage src={`${ASSET_BASE}/019-icon_object.png`} style={abs(886, 1089, 143, 155)} />
+          <DecoImage src={`${ASSET_BASE}/020-Object-Creater.svg`} style={abs(847, 1268, 214, 31)} />
+          <div
+            style={{
+              ...abs(871, 1303, 220, 26),
+              fontSize: 20,
+              fontWeight: 500,
+              letterSpacing: '-0.88px',
+              lineHeight: 'normal',
+            }}
+          >
+            오브젝트를 생성합니다
+          </div>
+          <DecoImage src={`${ASSET_BASE}/021-btn.svg`} style={abs(1130, 1299, 38, 38)} />
+
+          <DecoImage src={`${ASSET_BASE}/022-2.svg`} style={abs(1227, 1049, 454, 304)} />
+          <DecoImage src={`${ASSET_BASE}/024-9.png`} style={abs(1364, 1083, 160, 184)} />
+          <DecoImage src={`${ASSET_BASE}/023-UpScaler.svg`} style={abs(1387, 1269, 132, 31)} />
+          <div
+            style={{
+              ...abs(1319, 1303, 287, 26),
+              fontSize: 20,
+              fontWeight: 500,
+              letterSpacing: '-0.88px',
+              lineHeight: 'normal',
+            }}
+          >
+            화질을 더 선명하게 업스케일 합니다
+          </div>
+          <DecoImage src={`${ASSET_BASE}/025-btn.svg`} style={abs(1628, 1299, 38, 38)} />
+
+          <DecoImage src={`${ASSET_BASE}/026-2.svg`} style={abs(240, 1393, 454, 304)} />
+          <DecoImage src={`${ASSET_BASE}/027-Mask-group.svg`} style={abs(326, 1415, 282, 188)} />
+          <div
+            style={{
+              ...abs(410, 1612, 150, 31),
+              fontSize: 27.5,
+              fontWeight: 800,
+              letterSpacing: '-1.1px',
+              lineHeight: 'normal',
+            }}
+          >
+            로고작업실
+          </div>
+          <div
+            style={{
+              ...abs(343, 1647, 260, 26),
+              fontSize: 20,
+              fontWeight: 500,
+              letterSpacing: '-0.88px',
+              lineHeight: 'normal',
+            }}
+          >
+            서비스에 맞는 로고를 제작합니다
+          </div>
+          <DecoImage src={`${ASSET_BASE}/028-btn.svg`} style={abs(641, 1640, 38, 38)} />
+
+          <DecoImage src={`${ASSET_BASE}/029-2.svg`} style={abs(730, 1393, 454, 304)} />
+          <TextSwapIllustration />
+          <div
+            style={{
+              ...abs(911, 1612, 120, 31),
+              fontSize: 27.5,
+              fontWeight: 800,
+              letterSpacing: '-1.1px',
+              lineHeight: 'normal',
+            }}
+          >
+            의자뺏기
+          </div>
+          <div
+            style={{
+              ...abs(823, 1647, 280, 26),
+              fontSize: 20,
+              fontWeight: 500,
+              letterSpacing: '-0.88px',
+              lineHeight: 'normal',
+            }}
+          >
+            텍스트 검수 및 텍스트를 교체합니다
+          </div>
+          <DecoImage src={`${ASSET_BASE}/036-btn.svg`} style={abs(1130, 1640, 38, 38)} />
+
+          <DecoImage src={`${ASSET_BASE}/037-2.svg`} style={abs(1227, 1393, 454, 304)} />
+          <DecoImage src={`${ASSET_BASE}/038-Group-3.svg`} style={abs(1325, 1415, 244, 188)} />
+          <div
+            style={{
+              ...abs(1419, 1612, 110, 31),
+              fontSize: 27.5,
+              fontWeight: 800,
+              letterSpacing: '-1.1px',
+              lineHeight: 'normal',
+            }}
+          >
+            봉준호
+          </div>
+          <div
+            style={{
+              ...abs(1294, 1647, 302, 26),
+              fontSize: 20,
+              fontWeight: 500,
+              letterSpacing: '-0.88px',
+              lineHeight: 'normal',
+            }}
+          >
+            카메라 앵글에 대한 프롬프트를 알려줍니다
+          </div>
+          <DecoImage src={`${ASSET_BASE}/039-btn.svg`} style={abs(1628, 1640, 38, 38)} />
+
+          <DecoImage src={`${ASSET_BASE}/040-2.svg`} style={abs(240, 1737, 454, 304)} />
+          <DecoImage src={`${ASSET_BASE}/041-534.svg`} style={abs(255, 1752, 116, 41)} />
+          <DecoImage src={`${ASSET_BASE}/042-icon_sb.png`} style={abs(384, 1761, 174, 195)} />
+          <DecoImage src={`${ASSET_BASE}/043-Scene-Creater.svg`} style={abs(361, 1957, 207, 31)} />
+          <DecoImage src={`${ASSET_BASE}/044-beta.svg`} style={abs(287, 1761, 54, 23)} />
+          <div
+            style={{
+              ...abs(345, 1991, 280, 26),
+              fontSize: 20,
+              fontWeight: 500,
+              letterSpacing: '-0.88px',
+              lineHeight: 'normal',
+            }}
+          >
+            스토리보드로 장면을 생성합니다
+          </div>
+          <DecoImage src={`${ASSET_BASE}/045-btn.svg`} style={abs(641, 1987, 38, 38)} />
+
+          <DecoImage src={`${ASSET_BASE}/048-LABcord.png`} style={abs(239, 2217, 234, 35)} />
+          <DecoImage src={`${ASSET_BASE}/047-asset.svg`} style={abs(1504, 2220, 103, 60)} />
+          <DecoImage src={`${ASSET_BASE}/046-frame.svg`} style={abs(243, 2317, 1398, 729)} />
+
+          {labcordPosts.map((post, index) => {
+            const top = 2330 + index * 102;
+            return (
+              <div key={post}>
+                <div
+                  style={{
+                    ...abs(314, top, 1000, 84),
+                    fontSize: 30,
+                    fontWeight: index === 0 || index === 5 || index === 6 ? 700 : 500,
+                    lineHeight: '84px',
+                    letterSpacing: '-0.55px',
+                    color: '#000',
+                  }}
+                >
+                  {post}
+                </div>
+                <div
+                  style={{
+                    ...abs(1463, top + 3, 160, 81),
+                    fontSize: 30,
+                    fontWeight: 500,
+                    lineHeight: '81px',
+                    letterSpacing: '-0.55px',
+                    color: '#000',
+                    textAlign: 'left',
+                  }}
+                >
+                  26.05.21
+                </div>
+              </div>
+            );
+          })}
+
+          <DecoImage src={`${ASSET_BASE}/004-Tool-Supporter.png`} style={abs(257, 3221, 354, 43)} />
+
+          {supporterCards.map((card) => (
+            <SupporterCard key={card.label} {...card} />
+          ))}
+
+          <DecoImage src={`${ASSET_BASE}/049-asset.svg`} style={abs(-69, 3896, 2058, 323)} />
+
+          <NavOverlay
+            label="Rotation"
+            left={240}
+            top={1049}
+            width={454}
+            height={304}
+            onClick={() => setOpenPopup('rotation')}
+          />
+          <NavOverlay
+            label="Object Creator"
+            left={730}
+            top={1049}
+            width={454}
+            height={304}
+            onClick={() => setOpenPopup('object-creator')}
+          />
+          <NavOverlay
+            label="로고작업실"
+            left={240}
+            top={1393}
+            width={454}
+            height={304}
+            onClick={() => setOpenPopup('logo-maker')}
+          />
+          <NavOverlay
+            label="Scene Creteor"
+            left={240}
+            top={1737}
+            width={454}
+            height={304}
+            onClick={() => setOpenPopup('scene-creator')}
+          />
+        </div>
+      </div>
+
+      {currentPopup ? (
+        <PopupModal
+          popup={currentPopup}
+          onClose={() => setOpenPopup(null)}
+          onStart={() => {
+            const route = currentPopup.route;
+            setOpenPopup(null);
+            navigate(route);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
