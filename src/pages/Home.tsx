@@ -26,6 +26,12 @@ type PopupConfig = {
   buttonIconStyle: CSSProperties;
 };
 
+type LabcordPost = {
+  id: string;
+  title: string;
+  date: string;
+};
+
 const popupConfigs: Record<PopupKey, PopupConfig> = {
   rotation: {
     key: 'rotation',
@@ -98,16 +104,6 @@ const popupConfigs: Record<PopupKey, PopupConfig> = {
     buttonIconStyle: abs(32, 15, 29, 40),
   },
 };
-
-const labcordPosts = [
-  '감쟈님 블로그 포스트는 써보셨나 AI 활용법기 - 영경 연구원님',
-  'AI가 제대로 구현하지 못하는 물리, "Rotation"은 어떻게? - 감쟈 연구원님',
-  '나도 모르는 카메라 앵글 용어를 AI가 모르는 단어로 설명? - 영경 연구원님',
-  "미래 도시 ‘무한', 그것은 어디인가? 감자 연구소 '무한' 워크샵 이야기 - 감쟈 연구원님",
-  '감정컨트롤 AI via 개발과 PoC/PTT 후딱 하는 법 (a.k.a. AI와 싸운 썰) - 감자, 영채 연구원님',
-  '클링 3.0 흔들림 방지 및 보정 방법 - 감쟈 연구원님',
-  "'UpScaler' 인식 불가한 부분까지 인식하게 만들어 업스케일 구현 - 영채 연구원님",
-];
 
 const supporterCards = [
   { bg: '005-6.svg', chip: '006-7.svg', label: 'Figma', accent: '#b58aff', x: 240, y: 3310 },
@@ -375,6 +371,7 @@ export default function Home() {
   const [scale, setScale] = useState(1);
   const [availableWidth, setAvailableWidth] = useState(CONTENT_WIDTH);
   const [openPopup, setOpenPopup] = useState<PopupKey | null>(null);
+  const [labcordPosts, setLabcordPosts] = useState<LabcordPost[]>([]);
 
   useEffect(() => {
     const updateScale = () => {
@@ -415,6 +412,32 @@ export default function Home() {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [openPopup]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    fetch("/api/labcord/posts", { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`LABcord fetch failed: ${response.status}`);
+        }
+
+        return response.json() as Promise<{ posts?: LabcordPost[] }>;
+      })
+      .then((data) => {
+        setLabcordPosts(Array.isArray(data.posts) ? data.posts : []);
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        console.error(error);
+        setLabcordPosts([]);
+      });
+
+    return () => controller.abort();
+  }, []);
 
   const currentPopup = openPopup ? popupConfigs[openPopup] : null;
   const scaledHeight = DESIGN_HEIGHT * scale;
@@ -607,7 +630,7 @@ export default function Home() {
               {labcordPosts.map((post, index) => {
                 const top = 2330 + index * 102;
                 return (
-                  <div key={post}>
+                  <div key={post.id}>
                     <div
                       style={{
                         ...abs(314, top, 1000, 84),
@@ -618,7 +641,7 @@ export default function Home() {
                         color: '#000',
                       }}
                     >
-                      {post}
+                      {post.title}
                     </div>
                     <div
                       style={{
@@ -631,7 +654,7 @@ export default function Home() {
                         textAlign: 'left',
                       }}
                     >
-                      26.05.21
+                      {post.date}
                     </div>
                   </div>
                 );

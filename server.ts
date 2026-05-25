@@ -1,7 +1,81 @@
 import express from "express";
 import path from "path";
 import { GoogleGenAI, Type } from "@google/genai";
+import { NotionAPI } from "notion-client";
 import { buildMultiviewPerspectivePrompt } from "./Service/MultiView/services/multiviewPrompt";
+
+const notionApi = new NotionAPI();
+const LABCORD_NOTION_PAGE_ID = "ae0d2817-213d-4086-9b39-de9a057e9cde";
+const LABCORD_NOTION_COLLECTION_ID = "38ef860c-04dc-4ad3-8f42-74a576c7b06c";
+const LABCORD_NOTION_VIEW_ID = "d13740fc-81a2-4bfd-9996-4d449ce40812";
+
+type NotionRecordValue = {
+  properties?: Record<string, unknown>;
+  created_time?: number;
+};
+
+function getNotionTitle(value: NotionRecordValue | undefined): string {
+  const title = value?.properties?.title;
+  if (!Array.isArray(title)) {
+    return "";
+  }
+
+  return title
+    .map((part) => (Array.isArray(part) && typeof part[0] === "string" ? part[0] : ""))
+    .join("")
+    .trim();
+}
+
+function formatLabcordDate(timestamp: number | undefined): string {
+  if (!timestamp) {
+    return "";
+  }
+
+  const formatter = new Intl.DateTimeFormat("ko-KR", {
+    year: "2-digit",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: "Asia/Seoul",
+  });
+
+  return formatter
+    .format(new Date(timestamp))
+    .replace(/\s/g, "")
+    .replace(/\.$/, "");
+}
+
+async function getLabcordPosts() {
+  const recordMap = await notionApi.getPage(LABCORD_NOTION_PAGE_ID);
+  const blockIds =
+    recordMap.collection_query?.[LABCORD_NOTION_COLLECTION_ID]?.[LABCORD_NOTION_VIEW_ID]
+      ?.collection_group_results?.blockIds || [];
+
+  const posts = blockIds
+    .map((blockId: string) => {
+      const entry = recordMap.block?.[blockId] as
+        | { value?: { value?: NotionRecordValue } }
+        | undefined;
+      const value = entry?.value?.value;
+      const title = getNotionTitle(value);
+
+      if (!title) {
+        return null;
+      }
+
+      return {
+        id: blockId,
+        title,
+        date: formatLabcordDate(value?.created_time),
+        createdTime: value?.created_time || 0,
+      };
+    })
+    .filter((post): post is NonNullable<typeof post> => Boolean(post))
+    .sort((a, b) => b.createdTime - a.createdTime)
+    .slice(0, 7)
+    .map(({ createdTime, ...post }) => post);
+
+  return posts;
+}
 
 function getGeminiApiKey(): string {
   return (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "")
@@ -33,6 +107,17 @@ async function startServer() {
     res.setHeader("Content-Type", "application/javascript; charset=utf-8");
     res.setHeader("Cache-Control", "no-store");
     res.send(`window.__APP_CONFIG__ = ${JSON.stringify(payload)};`);
+  });
+
+  app.get("/api/labcord/posts", async (_req, res) => {
+    try {
+      const posts = await getLabcordPosts();
+      res.setHeader("Cache-Control", "no-store");
+      return res.json({ posts });
+    } catch (error: any) {
+      console.error("Labcord notion fetch error:", error);
+      return res.status(500).json({ error: String(error?.message || "LABcord 게시물을 불러오지 못했습니다.") });
+    }
   });
 
   // [1순위] Gemini API Proxy Route (감자님의 소중한 로직)
