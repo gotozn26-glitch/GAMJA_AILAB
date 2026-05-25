@@ -5,6 +5,8 @@ const ASSET_BASE = '/page1/image';
 const POPUP_ASSET_BASE = '/page-pop/image';
 const DESIGN_WIDTH = 1920;
 const DESIGN_HEIGHT = 4173;
+const CONTENT_LEFT = 239;
+const CONTENT_WIDTH = 1443;
 const POPUP_WIDTH = 1562;
 const POPUP_HEIGHT = 997;
 
@@ -163,16 +165,16 @@ function NavOverlay({
 function TextSwapIllustration() {
   return (
     <div style={abs(769, 1466, 376, 120)} className="pointer-events-none">
-      <div className="absolute left-0 top-[35px] h-[4px] w-[374px] bg-black" />
-      <div className="absolute left-[1px] top-[59px] h-[4px] w-[375px] bg-black/50" />
-      <div className="absolute left-[1px] top-[12px] h-[4px] w-[375px] bg-black/50" />
-      <div className="absolute left-[1px] top-[105px] h-[4px] w-[375px] bg-black/50" />
-      <div className="absolute left-0 top-[82px] h-[4px] w-[374px] bg-black" />
-      <div className="absolute left-[40px] top-[3px] h-[17px] w-[17px] rounded-full bg-black" />
-      <div className="absolute left-[319px] top-[103px] h-[17px] w-[17px] rounded-full bg-black" />
-      <div className="absolute left-[49px] top-[13px] h-[91px] w-[279px] bg-black/10" />
-      <div className="absolute left-[49px] top-[15px] h-[91px] w-[6px] bg-black" />
-      <div className="absolute left-[328px] top-[12px] h-[91px] w-[6px] bg-black" />
+      <DecoImage src={`${ASSET_BASE}/030-3.svg`} style={abs(0, 35, 374, 4)} />
+      <DecoImage src={`${ASSET_BASE}/031-3-3.svg`} style={abs(1, 59, 375, 4)} />
+      <DecoImage src={`${ASSET_BASE}/031-3-3.svg`} style={abs(1, 12, 375, 4)} />
+      <DecoImage src={`${ASSET_BASE}/031-3-3.svg`} style={abs(1, 105, 375, 4)} />
+      <DecoImage src={`${ASSET_BASE}/030-3.svg`} style={abs(0, 82, 374, 4)} />
+      <DecoImage src={`${ASSET_BASE}/032-3.svg`} style={abs(49, 13, 279, 91)} />
+      <DecoImage src={`${ASSET_BASE}/033-2.svg`} style={abs(40, 3, 17, 17)} />
+      <DecoImage src={`${ASSET_BASE}/034-2.svg`} style={abs(328, 12, 6, 91)} />
+      <DecoImage src={`${ASSET_BASE}/034-2.svg`} style={abs(49, 15, 6, 91)} />
+      <DecoImage src={`${ASSET_BASE}/035-2.svg`} style={abs(319, 103, 17, 17)} />
       <div className="absolute left-[73px] top-0 text-[100px] leading-none tracking-[-2.5px] text-black">
         TEXT
       </div>
@@ -369,21 +371,23 @@ function PopupModal({
 
 export default function Home() {
   const navigate = useNavigate();
-  const wrapperRef = useRef<HTMLDivElement>(null);
+  const scaleMeasureRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
+  const [availableWidth, setAvailableWidth] = useState(CONTENT_WIDTH);
   const [openPopup, setOpenPopup] = useState<PopupKey | null>(null);
 
   useEffect(() => {
     const updateScale = () => {
-      const width = wrapperRef.current?.clientWidth || DESIGN_WIDTH;
-      setScale(Math.min(width / DESIGN_WIDTH, 1));
+      const width = scaleMeasureRef.current?.clientWidth || CONTENT_WIDTH;
+      setAvailableWidth(width);
+      setScale(Math.min(width / CONTENT_WIDTH, 1));
     };
 
     updateScale();
 
-    if (typeof ResizeObserver !== 'undefined' && wrapperRef.current) {
+    if (typeof ResizeObserver !== 'undefined' && scaleMeasureRef.current) {
       const observer = new ResizeObserver(updateScale);
-      observer.observe(wrapperRef.current);
+      observer.observe(scaleMeasureRef.current);
       return () => observer.disconnect();
     }
 
@@ -413,250 +417,268 @@ export default function Home() {
   }, [openPopup]);
 
   const currentPopup = openPopup ? popupConfigs[openPopup] : null;
+  const scaledHeight = DESIGN_HEIGHT * scale;
+  const canvasLeft = (availableWidth - CONTENT_WIDTH * scale) / 2 - CONTENT_LEFT * scale;
 
   return (
     <div className="min-h-screen bg-white">
       <div
-        ref={wrapperRef}
-        className="mx-auto w-full max-w-[1920px]"
-        style={{ height: DESIGN_HEIGHT * scale }}
+        ref={scaleMeasureRef}
+        className="w-full"
       >
         <div
-          className="relative origin-top-left overflow-hidden bg-white"
-          style={{
-            width: DESIGN_WIDTH,
-            height: DESIGN_HEIGHT,
-            transform: `scale(${scale})`,
-          }}
+          className="relative w-full overflow-hidden bg-white"
+          style={{ height: scaledHeight }}
         >
-          <DecoImage src={`${ASSET_BASE}/001-bg.svg`} style={abs(-92, 0, 2127, 4320)} />
-          <DecoImage src={`${ASSET_BASE}/002-1.png`} style={abs(705, 223, 771, 742)} />
-          <DecoImage src={`${ASSET_BASE}/003-0.png`} style={abs(647, 227, 604, 570)} />
-          <DecoImage src={`${ASSET_BASE}/050-AI-LAB.svg`} style={abs(552, 486, 816, 218)} />
-          <DecoImage src={`${ASSET_BASE}/051-Gamjas.svg`} style={abs(864, 398, 286, 69)} />
-          <DecoImage src={`${ASSET_BASE}/052-SINCE-2026.png`} style={abs(903, 706, 175, 20)} />
+          <div
+            className="absolute top-0"
+            style={{
+              left: canvasLeft,
+              width: DESIGN_WIDTH * scale,
+              height: scaledHeight,
+            }}
+          >
+            <div
+              className="relative overflow-hidden bg-white"
+              style={{
+                width: DESIGN_WIDTH,
+                height: DESIGN_HEIGHT,
+                transform: `scale(${scale})`,
+                transformOrigin: 'top left',
+              }}
+            >
+              <DecoImage src={`${ASSET_BASE}/001-bg.svg`} style={abs(-92, 0, 2127, 4320)} />
+              <DecoImage src={`${ASSET_BASE}/002-1.png`} style={abs(705, 223, 771, 742)} />
+              <DecoImage src={`${ASSET_BASE}/003-0.png`} style={abs(647, 227, 604, 570)} />
+              <DecoImage src={`${ASSET_BASE}/050-AI-LAB.svg`} style={abs(552, 486, 816, 218)} />
+              <DecoImage src={`${ASSET_BASE}/051-Gamjas.svg`} style={abs(864, 398, 286, 69)} />
+              <DecoImage src={`${ASSET_BASE}/052-SINCE-2026.png`} style={abs(903, 706, 175, 20)} />
 
-          <DecoImage src={`${ASSET_BASE}/014-2.svg`} style={abs(240, 1049, 454, 304)} />
-          <DecoImage src={`${ASSET_BASE}/015-btn.svg`} style={abs(641, 1299, 38, 38)} />
-          <DecoImage src={`${ASSET_BASE}/016-icon_rotaiton.png`} style={abs(330, 1060, 274, 235)} />
-          <DecoImage src={`${ASSET_BASE}/017-Rotation.svg`} style={abs(403, 1268, 127, 31)} />
-          <div
-            style={{
-              ...abs(336, 1303, 285, 26),
-              fontSize: 20,
-              fontWeight: 500,
-              letterSpacing: '-0.88px',
-              lineHeight: 'normal',
-            }}
-          >
-            오브젝트를 정교하게 회전시킵니다
-          </div>
-
-          <DecoImage src={`${ASSET_BASE}/018-2.svg`} style={abs(730, 1049, 454, 304)} />
-          <DecoImage src={`${ASSET_BASE}/019-icon_object.png`} style={abs(886, 1089, 143, 155)} />
-          <DecoImage src={`${ASSET_BASE}/020-Object-Creater.svg`} style={abs(847, 1268, 214, 31)} />
-          <div
-            style={{
-              ...abs(871, 1303, 220, 26),
-              fontSize: 20,
-              fontWeight: 500,
-              letterSpacing: '-0.88px',
-              lineHeight: 'normal',
-            }}
-          >
-            오브젝트를 생성합니다
-          </div>
-          <DecoImage src={`${ASSET_BASE}/021-btn.svg`} style={abs(1130, 1299, 38, 38)} />
-
-          <DecoImage src={`${ASSET_BASE}/022-2.svg`} style={abs(1227, 1049, 454, 304)} />
-          <DecoImage src={`${ASSET_BASE}/024-9.png`} style={abs(1364, 1083, 160, 184)} />
-          <DecoImage src={`${ASSET_BASE}/023-UpScaler.svg`} style={abs(1387, 1269, 132, 31)} />
-          <div
-            style={{
-              ...abs(1319, 1303, 287, 26),
-              fontSize: 20,
-              fontWeight: 500,
-              letterSpacing: '-0.88px',
-              lineHeight: 'normal',
-            }}
-          >
-            화질을 더 선명하게 업스케일 합니다
-          </div>
-          <DecoImage src={`${ASSET_BASE}/025-btn.svg`} style={abs(1628, 1299, 38, 38)} />
-
-          <DecoImage src={`${ASSET_BASE}/026-2.svg`} style={abs(240, 1393, 454, 304)} />
-          <DecoImage src={`${ASSET_BASE}/027-Mask-group.svg`} style={abs(326, 1415, 282, 188)} />
-          <div
-            style={{
-              ...abs(410, 1612, 150, 31),
-              fontSize: 27.5,
-              fontWeight: 800,
-              letterSpacing: '-1.1px',
-              lineHeight: 'normal',
-            }}
-          >
-            로고작업실
-          </div>
-          <div
-            style={{
-              ...abs(343, 1647, 260, 26),
-              fontSize: 20,
-              fontWeight: 500,
-              letterSpacing: '-0.88px',
-              lineHeight: 'normal',
-            }}
-          >
-            서비스에 맞는 로고를 제작합니다
-          </div>
-          <DecoImage src={`${ASSET_BASE}/028-btn.svg`} style={abs(641, 1640, 38, 38)} />
-
-          <DecoImage src={`${ASSET_BASE}/029-2.svg`} style={abs(730, 1393, 454, 304)} />
-          <TextSwapIllustration />
-          <div
-            style={{
-              ...abs(911, 1612, 120, 31),
-              fontSize: 27.5,
-              fontWeight: 800,
-              letterSpacing: '-1.1px',
-              lineHeight: 'normal',
-            }}
-          >
-            의자뺏기
-          </div>
-          <div
-            style={{
-              ...abs(823, 1647, 280, 26),
-              fontSize: 20,
-              fontWeight: 500,
-              letterSpacing: '-0.88px',
-              lineHeight: 'normal',
-            }}
-          >
-            텍스트 검수 및 텍스트를 교체합니다
-          </div>
-          <DecoImage src={`${ASSET_BASE}/036-btn.svg`} style={abs(1130, 1640, 38, 38)} />
-
-          <DecoImage src={`${ASSET_BASE}/037-2.svg`} style={abs(1227, 1393, 454, 304)} />
-          <DecoImage src={`${ASSET_BASE}/038-Group-3.svg`} style={abs(1325, 1415, 244, 188)} />
-          <div
-            style={{
-              ...abs(1419, 1612, 110, 31),
-              fontSize: 27.5,
-              fontWeight: 800,
-              letterSpacing: '-1.1px',
-              lineHeight: 'normal',
-            }}
-          >
-            봉준호
-          </div>
-          <div
-            style={{
-              ...abs(1294, 1647, 302, 26),
-              fontSize: 20,
-              fontWeight: 500,
-              letterSpacing: '-0.88px',
-              lineHeight: 'normal',
-            }}
-          >
-            카메라 앵글에 대한 프롬프트를 알려줍니다
-          </div>
-          <DecoImage src={`${ASSET_BASE}/039-btn.svg`} style={abs(1628, 1640, 38, 38)} />
-
-          <DecoImage src={`${ASSET_BASE}/040-2.svg`} style={abs(240, 1737, 454, 304)} />
-          <DecoImage src={`${ASSET_BASE}/041-534.svg`} style={abs(255, 1752, 116, 41)} />
-          <DecoImage src={`${ASSET_BASE}/042-icon_sb.png`} style={abs(384, 1761, 174, 195)} />
-          <DecoImage src={`${ASSET_BASE}/043-Scene-Creater.svg`} style={abs(361, 1957, 207, 31)} />
-          <DecoImage src={`${ASSET_BASE}/044-beta.svg`} style={abs(287, 1761, 54, 23)} />
-          <div
-            style={{
-              ...abs(345, 1991, 280, 26),
-              fontSize: 20,
-              fontWeight: 500,
-              letterSpacing: '-0.88px',
-              lineHeight: 'normal',
-            }}
-          >
-            스토리보드로 장면을 생성합니다
-          </div>
-          <DecoImage src={`${ASSET_BASE}/045-btn.svg`} style={abs(641, 1987, 38, 38)} />
-
-          <DecoImage src={`${ASSET_BASE}/048-LABcord.png`} style={abs(239, 2217, 234, 35)} />
-          <DecoImage src={`${ASSET_BASE}/047-asset.svg`} style={abs(1504, 2220, 103, 60)} />
-          <DecoImage src={`${ASSET_BASE}/046-frame.svg`} style={abs(243, 2317, 1398, 729)} />
-
-          {labcordPosts.map((post, index) => {
-            const top = 2330 + index * 102;
-            return (
-              <div key={post}>
-                <div
-                  style={{
-                    ...abs(314, top, 1000, 84),
-                    fontSize: 30,
-                    fontWeight: index === 0 || index === 5 || index === 6 ? 700 : 500,
-                    lineHeight: '84px',
-                    letterSpacing: '-0.55px',
-                    color: '#000',
-                  }}
-                >
-                  {post}
-                </div>
-                <div
-                  style={{
-                    ...abs(1463, top + 3, 160, 81),
-                    fontSize: 30,
-                    fontWeight: 500,
-                    lineHeight: '81px',
-                    letterSpacing: '-0.55px',
-                    color: '#000',
-                    textAlign: 'left',
-                  }}
-                >
-                  26.05.21
-                </div>
+              <DecoImage src={`${ASSET_BASE}/014-2.svg`} style={abs(240, 1049, 454, 304)} />
+              <DecoImage src={`${ASSET_BASE}/015-btn.svg`} style={abs(641, 1299, 38, 38)} />
+              <DecoImage src={`${ASSET_BASE}/016-icon_rotaiton.png`} style={abs(330, 1060, 274, 235)} />
+              <DecoImage src={`${ASSET_BASE}/017-Rotation.svg`} style={abs(403, 1268, 127, 31)} />
+              <div
+                style={{
+                  ...abs(336, 1303, 285, 26),
+                  fontSize: 20,
+                  fontWeight: 500,
+                  letterSpacing: '-0.88px',
+                  lineHeight: 'normal',
+                }}
+              >
+                오브젝트를 정교하게 회전시킵니다
               </div>
-            );
-          })}
 
-          <DecoImage src={`${ASSET_BASE}/004-Tool-Supporter.png`} style={abs(257, 3221, 354, 43)} />
+              <DecoImage src={`${ASSET_BASE}/018-2.svg`} style={abs(730, 1049, 454, 304)} />
+              <DecoImage src={`${ASSET_BASE}/019-icon_object.png`} style={abs(886, 1089, 143, 155)} />
+              <DecoImage src={`${ASSET_BASE}/020-Object-Creater.svg`} style={abs(847, 1268, 214, 31)} />
+              <div
+                style={{
+                  ...abs(871, 1303, 220, 26),
+                  fontSize: 20,
+                  fontWeight: 500,
+                  letterSpacing: '-0.88px',
+                  lineHeight: 'normal',
+                }}
+              >
+                오브젝트를 생성합니다
+              </div>
+              <DecoImage src={`${ASSET_BASE}/021-btn.svg`} style={abs(1130, 1299, 38, 38)} />
 
-          {supporterCards.map((card) => (
-            <SupporterCard key={card.label} {...card} />
-          ))}
+              <DecoImage src={`${ASSET_BASE}/022-2.svg`} style={abs(1227, 1049, 454, 304)} />
+              <DecoImage src={`${ASSET_BASE}/024-9.png`} style={abs(1364, 1083, 160, 184)} />
+              <DecoImage src={`${ASSET_BASE}/023-UpScaler.svg`} style={abs(1387, 1269, 132, 31)} />
+              <div
+                style={{
+                  ...abs(1319, 1303, 287, 26),
+                  fontSize: 20,
+                  fontWeight: 500,
+                  letterSpacing: '-0.88px',
+                  lineHeight: 'normal',
+                }}
+              >
+                화질을 더 선명하게 업스케일 합니다
+              </div>
+              <DecoImage src={`${ASSET_BASE}/025-btn.svg`} style={abs(1628, 1299, 38, 38)} />
 
-          <DecoImage src={`${ASSET_BASE}/049-asset.svg`} style={abs(-69, 3896, 2058, 323)} />
+              <DecoImage src={`${ASSET_BASE}/026-2.svg`} style={abs(240, 1393, 454, 304)} />
+              <DecoImage src={`${ASSET_BASE}/027-Mask-group.svg`} style={abs(326, 1415, 282, 188)} />
+              <div
+                style={{
+                  ...abs(410, 1612, 150, 31),
+                  fontSize: 27.5,
+                  fontWeight: 800,
+                  letterSpacing: '-1.1px',
+                  lineHeight: 'normal',
+                }}
+              >
+                로고작업실
+              </div>
+              <div
+                style={{
+                  ...abs(343, 1647, 260, 26),
+                  fontSize: 20,
+                  fontWeight: 500,
+                  letterSpacing: '-0.88px',
+                  lineHeight: 'normal',
+                }}
+              >
+                서비스에 맞는 로고를 제작합니다
+              </div>
+              <DecoImage src={`${ASSET_BASE}/028-btn.svg`} style={abs(641, 1640, 38, 38)} />
 
-          <NavOverlay
-            label="Rotation"
-            left={240}
-            top={1049}
-            width={454}
-            height={304}
-            onClick={() => setOpenPopup('rotation')}
-          />
-          <NavOverlay
-            label="Object Creator"
-            left={730}
-            top={1049}
-            width={454}
-            height={304}
-            onClick={() => setOpenPopup('object-creator')}
-          />
-          <NavOverlay
-            label="로고작업실"
-            left={240}
-            top={1393}
-            width={454}
-            height={304}
-            onClick={() => setOpenPopup('logo-maker')}
-          />
-          <NavOverlay
-            label="Scene Creteor"
-            left={240}
-            top={1737}
-            width={454}
-            height={304}
-            onClick={() => setOpenPopup('scene-creator')}
-          />
+              <DecoImage src={`${ASSET_BASE}/029-2.svg`} style={abs(730, 1393, 454, 304)} />
+              <TextSwapIllustration />
+              <div
+                style={{
+                  ...abs(911, 1612, 120, 31),
+                  fontSize: 27.5,
+                  fontWeight: 800,
+                  letterSpacing: '-1.1px',
+                  lineHeight: 'normal',
+                }}
+              >
+                의자뺏기
+              </div>
+              <div
+                style={{
+                  ...abs(823, 1647, 280, 26),
+                  fontSize: 20,
+                  fontWeight: 500,
+                  letterSpacing: '-0.88px',
+                  lineHeight: 'normal',
+                }}
+              >
+                텍스트 검수 및 텍스트를 교체합니다
+              </div>
+              <DecoImage src={`${ASSET_BASE}/036-btn.svg`} style={abs(1130, 1640, 38, 38)} />
+
+              <DecoImage src={`${ASSET_BASE}/037-2.svg`} style={abs(1227, 1393, 454, 304)} />
+              <DecoImage src={`${ASSET_BASE}/038-Group-3.svg`} style={abs(1325, 1415, 244, 188)} />
+              <div
+                style={{
+                  ...abs(1334, 1612, 226, 31),
+                  fontSize: 27.5,
+                  fontWeight: 800,
+                  letterSpacing: '-1.1px',
+                  lineHeight: 'normal',
+                  textAlign: 'center',
+                }}
+              >
+                봉준호
+              </div>
+              <div
+                style={{
+                  ...abs(1266, 1647, 358, 26),
+                  fontSize: 20,
+                  fontWeight: 500,
+                  letterSpacing: '-0.88px',
+                  lineHeight: 'normal',
+                  textAlign: 'center',
+                }}
+              >
+                카메라 앵글에 대한 프롬프트를 알려줍니다
+              </div>
+              <DecoImage src={`${ASSET_BASE}/039-btn.svg`} style={abs(1628, 1640, 38, 38)} />
+
+              <DecoImage src={`${ASSET_BASE}/040-2.svg`} style={abs(240, 1737, 454, 304)} />
+              <DecoImage src={`${ASSET_BASE}/041-534.svg`} style={abs(255, 1752, 116, 41)} />
+              <DecoImage src={`${ASSET_BASE}/042-icon_sb.png`} style={abs(384, 1761, 174, 195)} />
+              <DecoImage src={`${ASSET_BASE}/043-Scene-Creater.svg`} style={abs(361, 1957, 207, 31)} />
+              <DecoImage src={`${ASSET_BASE}/044-beta.svg`} style={abs(287, 1761, 54, 23)} />
+              <div
+                style={{
+                  ...abs(345, 1991, 280, 26),
+                  fontSize: 20,
+                  fontWeight: 500,
+                  letterSpacing: '-0.88px',
+                  lineHeight: 'normal',
+                }}
+              >
+                스토리보드로 장면을 생성합니다
+              </div>
+              <DecoImage src={`${ASSET_BASE}/045-btn.svg`} style={abs(641, 1987, 38, 38)} />
+
+              <DecoImage src={`${ASSET_BASE}/048-LABcord.png`} style={abs(239, 2217, 234, 35)} />
+              <DecoImage src={`${ASSET_BASE}/047-asset.svg`} style={abs(1504, 2220, 103, 60)} />
+              <DecoImage src={`${ASSET_BASE}/046-frame.svg`} style={abs(243, 2317, 1398, 729)} />
+
+              {labcordPosts.map((post, index) => {
+                const top = 2330 + index * 102;
+                return (
+                  <div key={post}>
+                    <div
+                      style={{
+                        ...abs(314, top, 1000, 84),
+                        fontSize: 30,
+                        fontWeight: index === 0 || index === 5 || index === 6 ? 700 : 500,
+                        lineHeight: '84px',
+                        letterSpacing: '-0.55px',
+                        color: '#000',
+                      }}
+                    >
+                      {post}
+                    </div>
+                    <div
+                      style={{
+                        ...abs(1463, top + 3, 160, 81),
+                        fontSize: 30,
+                        fontWeight: 500,
+                        lineHeight: '81px',
+                        letterSpacing: '-0.55px',
+                        color: '#000',
+                        textAlign: 'left',
+                      }}
+                    >
+                      26.05.21
+                    </div>
+                  </div>
+                );
+              })}
+
+              <DecoImage src={`${ASSET_BASE}/004-Tool-Supporter.png`} style={abs(257, 3221, 354, 43)} />
+
+              {supporterCards.map((card) => (
+                <SupporterCard key={card.label} {...card} />
+              ))}
+
+              <DecoImage src={`${ASSET_BASE}/049-asset.svg`} style={abs(-69, 3896, 2058, 323)} />
+
+              <NavOverlay
+                label="Rotation"
+                left={240}
+                top={1049}
+                width={454}
+                height={304}
+                onClick={() => setOpenPopup('rotation')}
+              />
+              <NavOverlay
+                label="Object Creator"
+                left={730}
+                top={1049}
+                width={454}
+                height={304}
+                onClick={() => setOpenPopup('object-creator')}
+              />
+              <NavOverlay
+                label="로고작업실"
+                left={240}
+                top={1393}
+                width={454}
+                height={304}
+                onClick={() => setOpenPopup('logo-maker')}
+              />
+              <NavOverlay
+                label="Scene Creteor"
+                left={240}
+                top={1737}
+                width={454}
+                height={304}
+                onClick={() => setOpenPopup('scene-creator')}
+              />
+            </div>
+          </div>
         </div>
       </div>
 
