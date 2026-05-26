@@ -158,6 +158,32 @@ function DecoImage({
   return <img src={src} alt={alt} style={style} className={className} draggable={false} />;
 }
 
+function DecoVideo({
+  src,
+  style,
+  className = '',
+  poster,
+}: {
+  src: string;
+  style: CSSProperties;
+  className?: string;
+  poster?: string;
+}) {
+  return (
+    <video
+      src={src}
+      style={style}
+      className={className}
+      poster={poster}
+      autoPlay
+      loop
+      muted
+      playsInline
+      preload="auto"
+    />
+  );
+}
+
 function truncateText(value: string, limit: number): string {
   const chars = Array.from(value);
   if (chars.length <= limit) {
@@ -579,8 +605,40 @@ export default function Home() {
               }}
             >
               <DecoImage src={`${ASSET_BASE}/001-bg.svg`} style={abs(-92, 0, 2127, 4320)} />
-              <DecoImage src={`${ASSET_BASE}/002-1.png`} style={abs(705, 223, 771, 742)} />
-              <DecoImage src={`${ASSET_BASE}/003-0.png`} style={abs(647, 227, 604, 570)} />
+              <div
+                className="pointer-events-none"
+                style={{
+                  ...abs(705, 223, 771, 742),
+                  borderRadius: '50%',
+                  background:
+                    'radial-gradient(ellipse at 26% 30%, rgba(0, 0, 0, 0.38) 0%, rgba(0, 0, 0, 0.28) 34%, rgba(0, 0, 0, 0) 68%)',
+                  filter: 'blur(12px)',
+                  transform: 'rotate(16deg)',
+                  transformOrigin: 'center center',
+                }}
+              />
+              <div
+                className="pointer-events-none"
+                style={{
+                  ...abs(744, 258, 860, 860),
+                  borderRadius: '50%',
+                  background:
+                    'radial-gradient(ellipse at 24% 26%, rgba(0, 0, 0, 0.18) 0%, rgba(0, 0, 0, 0.12) 28%, rgba(0, 0, 0, 0.05) 46%, rgba(0, 0, 0, 0) 74%)',
+                  filter: 'blur(42px)',
+                  transform: 'rotate(18deg)',
+                  transformOrigin: 'center center',
+                }}
+              />
+              <DecoVideo
+                src="/image/top-potato-transparent.webm"
+                poster="/image/top-potato-transparent.png"
+                style={{
+                  ...abs(462, 42, 980, 927),
+                  objectFit: 'contain',
+                  transform: 'scaleX(1.08)',
+                  transformOrigin: 'center center',
+                }}
+              />
               <DecoImage src={`${ASSET_BASE}/050-AI-LAB.svg`} style={abs(552, 486, 816, 218)} />
               <DecoImage src={`${ASSET_BASE}/051-Gamjas.svg`} style={abs(864, 398, 286, 69)} />
               <DecoImage src={`${ASSET_BASE}/052-SINCE-2026.png`} style={abs(903, 706, 175, 20)} />
