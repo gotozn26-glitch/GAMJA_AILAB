@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 const ASSET_BASE = '/page1/image';
 const POPUP_ASSET_BASE = '/page-pop/image';
@@ -145,12 +144,12 @@ const popupConfigs: Record<PopupKey, PopupConfig> = {
 };
 
 const supporterCardLayouts = [
-  { bg: '005-6.svg', chip: '006-7.svg', x: 240, y: 3310 },
-  { bg: '008-6.svg', chip: '009-7.svg', x: 733, y: 3309 },
-  { bg: '010-6.svg', chip: '009-7.svg', x: 1225, y: 3307 },
-  { bg: '011-6.svg', chip: '006-7.svg', x: 240, y: 3512 },
-  { bg: '012-6.svg', chip: '009-7.svg', x: 733, y: 3514 },
-  { bg: '013-6.svg', chip: '009-7.svg', x: 1225, y: 3512, dark: true },
+  { bg: '005-6.svg', chip: '006-7.svg', x: 243, y: 3310 },
+  { bg: '008-6.svg', chip: '009-7.svg', x: 714, y: 3309 },
+  { bg: '010-6.svg', chip: '009-7.svg', x: 1186, y: 3307 },
+  { bg: '011-6.svg', chip: '006-7.svg', x: 243, y: 3512 },
+  { bg: '012-6.svg', chip: '009-7.svg', x: 714, y: 3514 },
+  { bg: '013-6.svg', chip: '009-7.svg', x: 1186, y: 3512, dark: true },
 ];
 
 function abs(left: number, top: number, width: number, height: number): CSSProperties {
@@ -489,7 +488,6 @@ function PopupModal({
 }
 
 export default function Home() {
-  const navigate = useNavigate();
   const scaleMeasureRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const [availableWidth, setAvailableWidth] = useState(CONTENT_WIDTH);
@@ -1085,7 +1083,7 @@ export default function Home() {
           onStart={() => {
             const route = currentPopup.route;
             setOpenPopup(null);
-            navigate(route);
+            window.open(route, '_blank', 'noopener,noreferrer');
           }}
         />
       ) : null}
