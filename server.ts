@@ -20,6 +20,7 @@ type NotionRecordValue = {
 type LabcordPost = {
   id: string;
   title: string;
+  category: string;
   author: string;
   date: string;
   url: string;
@@ -114,6 +115,7 @@ async function fetchLabcordPostsFromNotion(): Promise<LabcordPost[]> {
         blockId,
         value,
         title: getNotionTitle(value),
+        category: getNotionText(value?.properties?.["^k>^"]),
         authorIds: getNotionPersonIds(value?.properties?.["|c`="]),
       };
     })
@@ -129,7 +131,7 @@ async function fetchLabcordPostsFromNotion(): Promise<LabcordPost[]> {
   const authorMap = new Map(authorEntries);
 
   const posts = records
-    .map(({ blockId, value, title, authorIds }) => {
+    .map(({ blockId, value, title, category, authorIds }) => {
       const authors = authorIds
         .map((authorId) => authorMap.get(authorId))
         .filter((authorName): authorName is string => Boolean(authorName));
@@ -137,6 +139,7 @@ async function fetchLabcordPostsFromNotion(): Promise<LabcordPost[]> {
       return {
         id: blockId,
         title,
+        category,
         author: authors.join(", "),
         date: formatLabcordDate(value?.created_time),
         url: getLabcordPostUrl(blockId),

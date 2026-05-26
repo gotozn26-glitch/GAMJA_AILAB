@@ -23,6 +23,18 @@ const TOOL_SUPPORTER_CATEGORY_COLORS: Record<string, string> = {
   Office: '#ff001e',
   Etc: '#ffffff',
 };
+const YELLOW_SECTION_TOP = 1516;
+const YELLOW_SECTION_HEIGHT = 1008;
+const BOTTOM_SKY_TOP = 2860;
+const BOTTOM_SKY_HEIGHT = 1261;
+const BOTTOM_SKY_FADE_HEIGHT = 620;
+const FOOTER_BAR_TOP = 3962;
+const FOOTER_BAR_HEIGHT = 257;
+const FOOTER_BORDER_HEIGHT = 3;
+const TITLE_BG_WIDTH = 1757;
+const TITLE_BG_HEIGHT = 750;
+const TITLE_BG_TOP = 134;
+const HOME_LAYOUT_SCALE = 0.75;
 
 type PopupKey = 'rotation' | 'object-creator' | 'logo-maker' | 'scene-creator';
 
@@ -43,6 +55,7 @@ type PopupConfig = {
 type LabcordPost = {
   id: string;
   title: string;
+  category: string;
   author: string;
   date: string;
   url: string;
@@ -193,6 +206,17 @@ function truncateText(value: string, limit: number): string {
   return `${chars.slice(0, Math.max(limit - 3, 0)).join('')}...`;
 }
 
+function formatLabcordTitle(title: string, author: string, limit: number): string {
+  if (!author) {
+    return truncateText(title, limit);
+  }
+
+  const authorSuffix = ` - ${author}`;
+  const availableTitleLimit = Math.max(limit - Array.from(authorSuffix).length, 4);
+
+  return `${truncateText(title, availableTitleLimit)}${authorSuffix}`;
+}
+
 function normalizeToolSupporterCategory(value: string): keyof typeof TOOL_SUPPORTER_CATEGORY_COLORS {
   const normalized = value.trim().toLowerCase();
 
@@ -285,23 +309,25 @@ function SupporterCard({
   return (
     <>
       <DecoImage src={`${ASSET_BASE}/${bg}`} style={abs(x, y, 455, 190)} />
-      <DecoImage src={`${ASSET_BASE}/${chip}`} style={abs(x + 31, y + 10, 221, 65)} />
+      <DecoImage src={`${ASSET_BASE}/${chip}`} style={abs(x + 28, y - 6, 221, 65)} />
       <div
         style={{
-          ...abs(x + 49, y, 220, 76),
+          ...abs(x + 28, y - 7, 221, 65),
           color: accent,
           textAlign: 'center',
           fontSize: 30,
           fontWeight: 700,
-          lineHeight: '84px',
           letterSpacing: '-0.55px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
       >
         {toolLabel}
       </div>
       <div
         style={{
-          ...abs(x + 32, y + 88, 310, 62),
+          ...abs(x + 53, y + 77, 258, 62),
           color: '#000',
           textAlign: 'center',
           fontSize: 22,
@@ -315,17 +341,17 @@ function SupporterCard({
       >
         {title}
       </div>
-      <DecoImage src={`${ASSET_BASE}/007-Group-2.svg`} style={abs(x + 349, y + 92, 65, 64)} />
+      <DecoImage src={`${ASSET_BASE}/007-Group-2.svg`} style={abs(x + 353, y + 72, 72, 71)} />
+      {showDarkBadge ? (
+        <div style={{ ...abs(x + 28, y - 7, 221, 65), background: '#000', opacity: 0.05, borderRadius: 999 }} />
+      ) : null}
       <button
         type="button"
         aria-label={`${post.title} 노션 게시물 열기`}
         onClick={() => window.open(post.url, '_blank', 'noopener,noreferrer')}
-        style={{ ...abs(x + 349, y + 92, 65, 64), background: 'transparent' }}
+        style={{ ...abs(x, y - 7, 455, 197), background: 'transparent' }}
         className="z-20 cursor-pointer"
       />
-      {showDarkBadge ? (
-        <div style={{ ...abs(x + 32, y, 216, 76), background: '#000', opacity: 0.05 }} />
-      ) : null}
     </>
   );
 }
@@ -472,12 +498,13 @@ export default function Home() {
   const [labcordStatus, setLabcordStatus] = useState<AsyncStatus>('loading');
   const [toolSupporterPosts, setToolSupporterPosts] = useState<ToolSupporterPost[]>([]);
   const [toolSupporterStatus, setToolSupporterStatus] = useState<AsyncStatus>('loading');
+  const [aiLabBlur, setAiLabBlur] = useState(0);
 
   useEffect(() => {
     const updateScale = () => {
       const width = scaleMeasureRef.current?.clientWidth || CONTENT_WIDTH;
       setAvailableWidth(width);
-      setScale(Math.min(width / CONTENT_WIDTH, 1));
+      setScale(Math.min(width / CONTENT_WIDTH, 1) * HOME_LAYOUT_SCALE);
     };
 
     updateScale();
@@ -573,9 +600,53 @@ export default function Home() {
     return () => controller.abort();
   }, []);
 
+  useEffect(() => {
+    let blurTimeout: number | undefined;
+    let resetTimeout: number | undefined;
+
+    const schedulePulse = () => {
+      const nextDelay =
+        Math.random() < 0.5
+          ? 1400 + Math.random() * 2200
+          : 4200 + Math.random() * 5200;
+      blurTimeout = window.setTimeout(() => {
+        setAiLabBlur(20);
+        resetTimeout = window.setTimeout(() => {
+          setAiLabBlur(0);
+          schedulePulse();
+        }, 1800 + Math.random() * 900);
+      }, nextDelay);
+    };
+
+    schedulePulse();
+
+    return () => {
+      if (blurTimeout) {
+        window.clearTimeout(blurTimeout);
+      }
+      if (resetTimeout) {
+        window.clearTimeout(resetTimeout);
+      }
+    };
+  }, []);
+
   const currentPopup = openPopup ? popupConfigs[openPopup] : null;
   const scaledHeight = DESIGN_HEIGHT * scale;
   const canvasLeft = (availableWidth - CONTENT_WIDTH * scale) / 2 - CONTENT_LEFT * scale;
+  const scaledRect = (left: number, top: number, width: number, height: number): CSSProperties => ({
+    position: 'absolute',
+    left: canvasLeft + left * scale,
+    top: top * scale,
+    width: width * scale,
+    height: height * scale,
+  });
+  const centeredScaledRect = (top: number, width: number, height: number): CSSProperties => ({
+    position: 'absolute',
+    left: (availableWidth - width * scale) / 2,
+    top: top * scale,
+    width: width * scale,
+    height: height * scale,
+  });
 
   return (
     <div className="min-h-screen bg-white">
@@ -588,6 +659,70 @@ export default function Home() {
           style={{ height: scaledHeight }}
         >
           <div
+            className="pointer-events-none absolute left-0 right-0"
+            style={{
+              top: YELLOW_SECTION_TOP * scale,
+              height: YELLOW_SECTION_HEIGHT * scale,
+              background: '#FFF000',
+            }}
+          />
+          <div
+            className="pointer-events-none absolute left-0 right-0"
+            style={{
+              top: BOTTOM_SKY_TOP * scale,
+              height: BOTTOM_SKY_HEIGHT * scale,
+              backgroundImage: "url('/image/home-bottom-sky.png')",
+              backgroundPosition: `center ${36 * scale}px`,
+              backgroundRepeat: 'no-repeat',
+              backgroundSize: 'cover',
+            }}
+          />
+          <div
+            className="pointer-events-none absolute left-0 right-0"
+            style={{
+              top: BOTTOM_SKY_TOP * scale,
+              height: BOTTOM_SKY_FADE_HEIGHT * scale,
+              background:
+                'linear-gradient(to bottom, rgba(255,255,255,1) 0%, rgba(255,255,255,0.99) 22%, rgba(255,255,255,0.94) 46%, rgba(255,255,255,0.72) 72%, rgba(255,255,255,0.38) 88%, rgba(255,255,255,0) 100%)',
+            }}
+          />
+          <div
+            className="pointer-events-none absolute left-0 right-0"
+            style={{
+              top: FOOTER_BAR_TOP * scale,
+              height: Math.max(FOOTER_BORDER_HEIGHT * scale, 2),
+              background: '#272727',
+            }}
+          />
+          <div
+            className="pointer-events-none absolute left-0 right-0"
+            style={{
+              top: FOOTER_BAR_TOP * scale + Math.max(FOOTER_BORDER_HEIGHT * scale, 2),
+              height: FOOTER_BAR_HEIGHT * scale,
+              background: '#fff',
+            }}
+          />
+          <DecoImage
+            src="/image/home-title-bg.png"
+            style={centeredScaledRect(TITLE_BG_TOP, TITLE_BG_WIDTH, TITLE_BG_HEIGHT)}
+            className="pointer-events-none"
+          />
+          <DecoImage
+            src="/image/home-yellow-arrow.png"
+            style={scaledRect(1562, 1589, 430, 349)}
+            className="pointer-events-none"
+          />
+          <DecoImage
+            src="/image/home-bottom-flower.png"
+            style={scaledRect(-92, 2881, 302, 270)}
+            className="pointer-events-none"
+          />
+          <DecoImage
+            src="/image/home-bottom-spring.png"
+            style={scaledRect(1753, 3143, 181, 271)}
+            className="pointer-events-none"
+          />
+          <div
             className="absolute top-0"
             style={{
               left: canvasLeft,
@@ -596,7 +731,7 @@ export default function Home() {
             }}
           >
             <div
-              className="relative overflow-hidden bg-white"
+              className="relative"
               style={{
                 width: DESIGN_WIDTH,
                 height: DESIGN_HEIGHT,
@@ -604,7 +739,6 @@ export default function Home() {
                 transformOrigin: 'top left',
               }}
             >
-              <DecoImage src={`${ASSET_BASE}/001-bg.svg`} style={abs(-92, 0, 2127, 4320)} />
               <div
                 className="pointer-events-none"
                 style={{
@@ -639,7 +773,14 @@ export default function Home() {
                   transformOrigin: 'center center',
                 }}
               />
-              <DecoImage src={`${ASSET_BASE}/050-AI-LAB.svg`} style={abs(552, 486, 816, 218)} />
+              <DecoImage
+                src={`${ASSET_BASE}/050-AI-LAB.svg`}
+                style={{
+                  ...abs(552, 486, 816, 218),
+                  filter: `blur(${aiLabBlur}px)`,
+                  transition: 'filter 2200ms ease-in-out',
+                }}
+              />
               <DecoImage src={`${ASSET_BASE}/051-Gamjas.svg`} style={abs(864, 398, 286, 69)} />
               <DecoImage src={`${ASSET_BASE}/052-SINCE-2026.png`} style={abs(903, 706, 175, 20)} />
 
@@ -804,10 +945,7 @@ export default function Home() {
                   <DecoImage src={`${ASSET_BASE}/046-frame.svg`} style={abs(243, 2317, 1398, 729)} />
                   {labcordPosts.map((post, index) => {
                     const top = 2330 + index * 102;
-                    const displayTitle = truncateText(
-                      post.author ? `${post.title} - ${post.author}` : post.title,
-                      LABCORD_TITLE_LIMIT,
-                    );
+                    const displayTitle = formatLabcordTitle(post.title, post.author, LABCORD_TITLE_LIMIT);
                     return (
                       <div key={post.id}>
                         <button
@@ -821,7 +959,7 @@ export default function Home() {
                           style={{
                             ...abs(314, top, 1000, 84),
                             fontSize: 30,
-                            fontWeight: index === 0 || index === 5 || index === 6 ? 700 : 500,
+                            fontWeight: post.category === '연구' ? 700 : 500,
                             lineHeight: '84px',
                             letterSpacing: '-0.55px',
                             color: '#000',
@@ -894,6 +1032,14 @@ export default function Home() {
               ) : null}
 
               <DecoImage src={`${ASSET_BASE}/049-asset.svg`} style={abs(-69, 3896, 2058, 323)} />
+              <DecoVideo
+                src="/image/done.webm"
+                style={{
+                  ...abs(1620, 3896, 113, 218),
+                  objectFit: 'contain',
+                }}
+                className="pointer-events-none"
+              />
 
               <NavOverlay
                 label="Rotation"
