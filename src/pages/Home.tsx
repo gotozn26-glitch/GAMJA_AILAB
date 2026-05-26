@@ -412,7 +412,7 @@ function PopupModal({
             <div
               className="absolute inset-0 overflow-hidden rounded-[30px] border-[3px] border-black bg-white"
               style={{
-                boxShadow: '-6px 8px 0 rgba(0, 0, 0, 0.3)',
+                boxShadow: '6px 8px 0 rgba(0, 0, 0, 0.3)',
               }}
             >
               <DecoImage src={`${POPUP_ASSET_BASE}/${popup.mask}`} style={abs(0, 0, POPUP_WIDTH, POPUP_HEIGHT)} />
@@ -783,7 +783,7 @@ export default function Home() {
               <DecoImage src={`${ASSET_BASE}/052-SINCE-2026.png`} style={abs(903, 706, 175, 20)} />
 
               <DecoImage src={`${ASSET_BASE}/014-2.svg`} style={abs(240, 1049, 454, 304)} />
-              <DecoImage src={`${ASSET_BASE}/015-btn.svg`} style={abs(641, 1299, 38, 38)} />
+              <DecoImage src={`${ASSET_BASE}/015-btn.svg`} style={abs(639, 1297, 38, 38)} />
               <DecoImage src={`${ASSET_BASE}/016-icon_rotaiton.png`} style={abs(330, 1060, 274, 235)} />
               <DecoImage src={`${ASSET_BASE}/017-Rotation.svg`} style={abs(403, 1268, 127, 31)} />
               <div
@@ -800,7 +800,18 @@ export default function Home() {
 
               <DecoImage src={`${ASSET_BASE}/018-2.svg`} style={abs(730, 1049, 454, 304)} />
               <DecoImage src={`${ASSET_BASE}/019-icon_object.png`} style={abs(886, 1089, 143, 155)} />
-              <DecoImage src={`${ASSET_BASE}/020-Object-Creater.svg`} style={abs(847, 1268, 214, 31)} />
+              <div
+                style={{
+                  ...abs(847, 1268, 214, 31),
+                  fontSize: 27.5,
+                  fontWeight: 800,
+                  letterSpacing: '-1.1px',
+                  lineHeight: 'normal',
+                  textAlign: 'center',
+                }}
+              >
+                Object Creator
+              </div>
               <div
                 style={{
                   ...abs(871, 1303, 220, 26),
@@ -812,7 +823,7 @@ export default function Home() {
               >
                 오브젝트를 생성합니다
               </div>
-              <DecoImage src={`${ASSET_BASE}/021-btn.svg`} style={abs(1130, 1299, 38, 38)} />
+              <DecoImage src={`${ASSET_BASE}/021-btn.svg`} style={abs(1128, 1297, 38, 38)} />
 
               <DecoImage src={`${ASSET_BASE}/022-2.svg`} style={abs(1227, 1049, 454, 304)} />
               <DecoImage src={`${ASSET_BASE}/024-9.png`} style={abs(1364, 1083, 160, 184)} />
@@ -828,7 +839,7 @@ export default function Home() {
               >
                 화질을 더 선명하게 업스케일 합니다
               </div>
-              <DecoImage src={`${ASSET_BASE}/025-btn.svg`} style={abs(1628, 1299, 38, 38)} />
+              <DecoImage src={`${ASSET_BASE}/025-btn.svg`} style={abs(1626, 1297, 38, 38)} />
 
               <DecoImage src={`${ASSET_BASE}/026-2.svg`} style={abs(240, 1393, 454, 304)} />
               <DecoImage src={`${ASSET_BASE}/027-Mask-group.svg`} style={abs(326, 1415, 282, 188)} />
@@ -854,7 +865,7 @@ export default function Home() {
               >
                 서비스에 맞는 로고를 제작합니다
               </div>
-              <DecoImage src={`${ASSET_BASE}/028-btn.svg`} style={abs(641, 1640, 38, 38)} />
+              <DecoImage src={`${ASSET_BASE}/028-btn.svg`} style={abs(639, 1638, 38, 38)} />
 
               <DecoImage src={`${ASSET_BASE}/029-2.svg`} style={abs(730, 1393, 454, 304)} />
               <TextSwapIllustration />
@@ -880,7 +891,7 @@ export default function Home() {
               >
                 텍스트 검수 및 텍스트를 교체합니다
               </div>
-              <DecoImage src={`${ASSET_BASE}/036-btn.svg`} style={abs(1130, 1640, 38, 38)} />
+              <DecoImage src={`${ASSET_BASE}/036-btn.svg`} style={abs(1128, 1638, 38, 38)} />
 
               <DecoImage src={`${ASSET_BASE}/037-2.svg`} style={abs(1227, 1393, 454, 304)} />
               <DecoImage src={`${ASSET_BASE}/038-Group-3.svg`} style={abs(1325, 1415, 244, 188)} />
@@ -908,12 +919,23 @@ export default function Home() {
               >
                 카메라 앵글에 대한 프롬프트를 알려줍니다
               </div>
-              <DecoImage src={`${ASSET_BASE}/039-btn.svg`} style={abs(1628, 1640, 38, 38)} />
+              <DecoImage src={`${ASSET_BASE}/039-btn.svg`} style={abs(1626, 1638, 38, 38)} />
 
               <DecoImage src={`${ASSET_BASE}/040-2.svg`} style={abs(240, 1737, 454, 304)} />
               <DecoImage src={`${ASSET_BASE}/041-534.svg`} style={abs(255, 1752, 116, 41)} />
               <DecoImage src={`${ASSET_BASE}/042-icon_sb.png`} style={abs(384, 1761, 174, 195)} />
-              <DecoImage src={`${ASSET_BASE}/043-Scene-Creater.svg`} style={abs(361, 1957, 207, 31)} />
+              <div
+                style={{
+                  ...abs(361, 1957, 207, 31),
+                  fontSize: 27.5,
+                  fontWeight: 800,
+                  letterSpacing: '-1.1px',
+                  lineHeight: 'normal',
+                  textAlign: 'center',
+                }}
+              >
+                Scene Creator
+              </div>
               <DecoImage src={`${ASSET_BASE}/044-beta.svg`} style={abs(287, 1761, 54, 23)} />
               <div
                 style={{
@@ -926,7 +948,7 @@ export default function Home() {
               >
                 스토리보드로 장면을 생성합니다
               </div>
-              <DecoImage src={`${ASSET_BASE}/045-btn.svg`} style={abs(641, 1987, 38, 38)} />
+              <DecoImage src={`${ASSET_BASE}/045-btn.svg`} style={abs(639, 1985, 38, 38)} />
 
               <DecoImage src={`${ASSET_BASE}/048-LABcord.png`} style={abs(239, 2217, 234, 35)} />
               <DecoImage src={`${ASSET_BASE}/047-asset.svg`} style={abs(1504, 2220, 103, 60)} />
@@ -1064,7 +1086,7 @@ export default function Home() {
                 onClick={() => setOpenPopup('logo-maker')}
               />
               <NavOverlay
-                label="Scene Creteor"
+                label="Scene Creator"
                 left={240}
                 top={1737}
                 width={454}
