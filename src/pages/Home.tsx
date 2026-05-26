@@ -11,7 +11,18 @@ const POPUP_WIDTH = 1562;
 const POPUP_HEIGHT = 997;
 const LABCORD_BOARD_URL =
   'https://www.notion.so/ae0d2817213d40869b39de9a057e9cde?v=d13740fc81a24bfd99964d449ce40812&source=copy_link';
+const TOOL_SUPPORTER_BOARD_URL =
+  'https://www.notion.so/396c62263bcd4bf2a49127c95a487941?v=4d4247af80ab44a28b6fd00c50911d21&source=copy_link';
 const LABCORD_TITLE_LIMIT = 46;
+const TOOL_SUPPORTER_TITLE_LIMIT = 28;
+const TOOL_SUPPORTER_CATEGORY_COLORS: Record<string, string> = {
+  Figma: '#b58aff',
+  'After Effect': '#00aff7',
+  Photoshop: '#00d46b',
+  Illustrator: '#ff5c08',
+  Office: '#ff001e',
+  Etc: '#ffffff',
+};
 
 type PopupKey = 'rotation' | 'object-creator' | 'logo-maker' | 'scene-creator';
 
@@ -37,7 +48,15 @@ type LabcordPost = {
   url: string;
 };
 
-type LabcordStatus = 'loading' | 'ready' | 'error';
+type ToolSupporterPost = {
+  id: string;
+  title: string;
+  tool: string;
+  description: string;
+  url: string;
+};
+
+type AsyncStatus = 'loading' | 'ready' | 'error';
 
 const popupConfigs: Record<PopupKey, PopupConfig> = {
   rotation: {
@@ -112,13 +131,13 @@ const popupConfigs: Record<PopupKey, PopupConfig> = {
   },
 };
 
-const supporterCards = [
-  { bg: '005-6.svg', chip: '006-7.svg', label: 'Figma', accent: '#b58aff', x: 240, y: 3310 },
-  { bg: '008-6.svg', chip: '009-7.svg', label: 'After Effect', accent: '#00aff7', x: 733, y: 3309 },
-  { bg: '010-6.svg', chip: '009-7.svg', label: 'Photoshop', accent: '#00d46b', x: 1225, y: 3307 },
-  { bg: '011-6.svg', chip: '006-7.svg', label: 'Illustrator', accent: '#ff5c08', x: 240, y: 3512 },
-  { bg: '012-6.svg', chip: '009-7.svg', label: 'Office', accent: '#ff001e', x: 733, y: 3514 },
-  { bg: '013-6.svg', chip: '009-7.svg', label: 'Etc', accent: '#ffffff', x: 1225, y: 3512, dark: true },
+const supporterCardLayouts = [
+  { bg: '005-6.svg', chip: '006-7.svg', x: 240, y: 3310 },
+  { bg: '008-6.svg', chip: '009-7.svg', x: 733, y: 3309 },
+  { bg: '010-6.svg', chip: '009-7.svg', x: 1225, y: 3307 },
+  { bg: '011-6.svg', chip: '006-7.svg', x: 240, y: 3512 },
+  { bg: '012-6.svg', chip: '009-7.svg', x: 733, y: 3514 },
+  { bg: '013-6.svg', chip: '009-7.svg', x: 1225, y: 3512, dark: true },
 ];
 
 function abs(left: number, top: number, width: number, height: number): CSSProperties {
@@ -146,6 +165,28 @@ function truncateText(value: string, limit: number): string {
   }
 
   return `${chars.slice(0, Math.max(limit - 3, 0)).join('')}...`;
+}
+
+function normalizeToolSupporterCategory(value: string): keyof typeof TOOL_SUPPORTER_CATEGORY_COLORS {
+  const normalized = value.trim().toLowerCase();
+
+  if (normalized === 'figma') {
+    return 'Figma';
+  }
+  if (normalized === 'after effect') {
+    return 'After Effect';
+  }
+  if (normalized === 'photoshop') {
+    return 'Photoshop';
+  }
+  if (normalized === 'illustrator') {
+    return 'Illustrator';
+  }
+  if (normalized === 'office') {
+    return 'Office';
+  }
+
+  return 'Etc';
 }
 
 function NavOverlay({
@@ -197,20 +238,24 @@ function TextSwapIllustration() {
 function SupporterCard({
   bg,
   chip,
-  label,
-  accent,
   x,
   y,
   dark,
+  post,
 }: {
   bg: string;
   chip: string;
-  label: string;
-  accent: string;
   x: number;
   y: number;
   dark?: boolean;
+  post: ToolSupporterPost;
 }) {
+  const category = normalizeToolSupporterCategory(post.tool || 'Etc');
+  const accent = TOOL_SUPPORTER_CATEGORY_COLORS[category];
+  const toolLabel = truncateText(category, 16);
+  const title = truncateText(post.title || post.description || 'Tool Supporter', TOOL_SUPPORTER_TITLE_LIMIT);
+  const showDarkBadge = dark || category === 'Etc';
+
   return (
     <>
       <DecoImage src={`${ASSET_BASE}/${bg}`} style={abs(x, y, 455, 190)} />
@@ -226,23 +271,33 @@ function SupporterCard({
           letterSpacing: '-0.55px',
         }}
       >
-        {label}
+        {toolLabel}
       </div>
       <div
         style={{
-          ...abs(x + (label === 'Figma' ? 76 : label === 'After Effect' ? 53 : label === 'Photoshop' ? 32 : label === 'Illustrator' ? 49 : label === 'Office' ? 52 : 32), y + 81, 281, 76),
+          ...abs(x + 32, y + 88, 310, 62),
           color: '#000',
-          textAlign: label === 'Figma' ? 'left' : 'center',
-          fontSize: 25,
+          textAlign: 'center',
+          fontSize: 22,
           fontWeight: 700,
-          lineHeight: '84px',
+          lineHeight: '130%',
           letterSpacing: '-0.46px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
       >
-        맞춤 용량 추출 도우미
+        {title}
       </div>
       <DecoImage src={`${ASSET_BASE}/007-Group-2.svg`} style={abs(x + 349, y + 92, 65, 64)} />
-      {dark ? (
+      <button
+        type="button"
+        aria-label={`${post.title} 노션 게시물 열기`}
+        onClick={() => window.open(post.url, '_blank', 'noopener,noreferrer')}
+        style={{ ...abs(x + 349, y + 92, 65, 64), background: 'transparent' }}
+        className="z-20 cursor-pointer"
+      />
+      {showDarkBadge ? (
         <div style={{ ...abs(x + 32, y, 216, 76), background: '#000', opacity: 0.05 }} />
       ) : null}
     </>
@@ -388,7 +443,9 @@ export default function Home() {
   const [availableWidth, setAvailableWidth] = useState(CONTENT_WIDTH);
   const [openPopup, setOpenPopup] = useState<PopupKey | null>(null);
   const [labcordPosts, setLabcordPosts] = useState<LabcordPost[]>([]);
-  const [labcordStatus, setLabcordStatus] = useState<LabcordStatus>('loading');
+  const [labcordStatus, setLabcordStatus] = useState<AsyncStatus>('loading');
+  const [toolSupporterPosts, setToolSupporterPosts] = useState<ToolSupporterPost[]>([]);
+  const [toolSupporterStatus, setToolSupporterStatus] = useState<AsyncStatus>('loading');
 
   useEffect(() => {
     const updateScale = () => {
@@ -455,6 +512,36 @@ export default function Home() {
         console.error(error);
         setLabcordPosts([]);
         setLabcordStatus('error');
+      });
+
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setToolSupporterStatus('loading');
+
+    fetch('/api/tool-supporters', { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`Tool Supporter fetch failed: ${response.status}`);
+        }
+
+        return response.json() as Promise<{ posts?: ToolSupporterPost[] }>;
+      })
+      .then((data) => {
+        const posts = Array.isArray(data.posts) ? data.posts : [];
+        setToolSupporterPosts(posts);
+        setToolSupporterStatus('ready');
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        console.error(error);
+        setToolSupporterPosts([]);
+        setToolSupporterStatus('error');
       });
 
     return () => controller.abort();
@@ -717,10 +804,36 @@ export default function Home() {
               ) : null}
 
               <DecoImage src={`${ASSET_BASE}/004-Tool-Supporter.png`} style={abs(257, 3221, 354, 43)} />
+              <DecoImage src={`${ASSET_BASE}/047-asset.svg`} style={abs(1504, 3220, 103, 60)} />
+              <button
+                type="button"
+                aria-label="Tool Supporter 노션 게시판 열기"
+                onClick={() => window.open(TOOL_SUPPORTER_BOARD_URL, '_blank', 'noopener,noreferrer')}
+                style={{ ...abs(1504, 3220, 103, 60), background: 'transparent' }}
+                className="z-20 cursor-pointer"
+              />
 
-              {supporterCards.map((card) => (
-                <SupporterCard key={card.label} {...card} />
-              ))}
+              {toolSupporterStatus === 'ready' && toolSupporterPosts.length > 0
+                ? toolSupporterPosts.slice(0, supporterCardLayouts.length).map((post, index) => {
+                    const layout = supporterCardLayouts[index];
+                    return layout ? <SupporterCard key={post.id} {...layout} post={post} /> : null;
+                  })
+                : null}
+
+              {toolSupporterStatus === 'loading' ? (
+                <div
+                  style={{
+                    ...abs(257, 3310, 800, 84),
+                    fontSize: 30,
+                    fontWeight: 500,
+                    lineHeight: '84px',
+                    letterSpacing: '-0.55px',
+                    color: '#000',
+                  }}
+                >
+                  Tool Supporter 글을 불러오는 중입니다...
+                </div>
+              ) : null}
 
               <DecoImage src={`${ASSET_BASE}/049-asset.svg`} style={abs(-69, 3896, 2058, 323)} />
 

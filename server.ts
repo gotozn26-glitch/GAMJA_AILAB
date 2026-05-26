@@ -8,6 +8,9 @@ const notionApi = new NotionAPI();
 const LABCORD_NOTION_PAGE_ID = "ae0d2817-213d-4086-9b39-de9a057e9cde";
 const LABCORD_NOTION_COLLECTION_ID = "38ef860c-04dc-4ad3-8f42-74a576c7b06c";
 const LABCORD_NOTION_VIEW_ID = "d13740fc-81a2-4bfd-9996-4d449ce40812";
+const TOOL_SUPPORTER_NOTION_PAGE_ID = "396c6226-3bcd-4bf2-a491-27c95a487941";
+const TOOL_SUPPORTER_NOTION_COLLECTION_ID = "629e7e0f-9dd3-4f69-9fdb-c9ee120c9e80";
+const TOOL_SUPPORTER_NOTION_VIEW_ID = "4d4247af-80ab-44a2-8b6f-d00c50911d21";
 
 type NotionRecordValue = {
   properties?: Record<string, unknown>;
@@ -22,16 +25,29 @@ type LabcordPost = {
   url: string;
 };
 
+type ToolSupporterPost = {
+  id: string;
+  title: string;
+  tool: string;
+  description: string;
+  url: string;
+};
+
 let labcordPostsCache: LabcordPost[] | null = null;
 let labcordPostsInFlight: Promise<LabcordPost[]> | null = null;
+let toolSupporterPostsCache: ToolSupporterPost[] | null = null;
+let toolSupporterPostsInFlight: Promise<ToolSupporterPost[]> | null = null;
 
 function getNotionTitle(value: NotionRecordValue | undefined): string {
-  const title = value?.properties?.title;
-  if (!Array.isArray(title)) {
+  return getNotionText(value?.properties?.title);
+}
+
+function getNotionText(propertyValue: unknown): string {
+  if (!Array.isArray(propertyValue)) {
     return "";
   }
 
-  return title
+  return propertyValue
     .map((part) => (Array.isArray(part) && typeof part[0] === "string" ? part[0] : ""))
     .join("")
     .trim();
@@ -134,6 +150,36 @@ async function fetchLabcordPostsFromNotion(): Promise<LabcordPost[]> {
   return posts;
 }
 
+async function fetchToolSupporterPostsFromNotion(): Promise<ToolSupporterPost[]> {
+  const recordMap = await notionApi.getPage(TOOL_SUPPORTER_NOTION_PAGE_ID);
+  const blockIds =
+    recordMap.collection_query?.[TOOL_SUPPORTER_NOTION_COLLECTION_ID]?.[TOOL_SUPPORTER_NOTION_VIEW_ID]
+      ?.collection_group_results?.blockIds || [];
+
+  return blockIds
+    .map((blockId: string) => {
+      const entry = recordMap.block?.[blockId] as
+        | { value?: { value?: NotionRecordValue } }
+        | undefined;
+      const value = entry?.value?.value;
+      const title = getNotionTitle(value);
+
+      if (!title) {
+        return null;
+      }
+
+      return {
+        id: blockId,
+        title,
+        tool: getNotionText(value?.properties?.["SOE{"]) || "Etc",
+        description: getNotionText(value?.properties?.["^W~:"]),
+        url: getLabcordPostUrl(blockId),
+      };
+    })
+    .filter((post): post is NonNullable<typeof post> => Boolean(post))
+    .slice(0, 6);
+}
+
 function refreshLabcordPosts(): Promise<LabcordPost[]> {
   if (labcordPostsInFlight) {
     return labcordPostsInFlight;
@@ -151,12 +197,37 @@ function refreshLabcordPosts(): Promise<LabcordPost[]> {
   return labcordPostsInFlight;
 }
 
+function refreshToolSupporterPosts(): Promise<ToolSupporterPost[]> {
+  if (toolSupporterPostsInFlight) {
+    return toolSupporterPostsInFlight;
+  }
+
+  toolSupporterPostsInFlight = fetchToolSupporterPostsFromNotion()
+    .then((posts) => {
+      toolSupporterPostsCache = posts;
+      return posts;
+    })
+    .finally(() => {
+      toolSupporterPostsInFlight = null;
+    });
+
+  return toolSupporterPostsInFlight;
+}
+
 async function getLabcordPosts(): Promise<LabcordPost[]> {
   if (labcordPostsCache) {
     return labcordPostsCache;
   }
 
   return refreshLabcordPosts();
+}
+
+async function getToolSupporterPosts(): Promise<ToolSupporterPost[]> {
+  if (toolSupporterPostsCache) {
+    return toolSupporterPostsCache;
+  }
+
+  return refreshToolSupporterPosts();
 }
 
 function getGeminiApiKey(): string {
@@ -183,8 +254,14 @@ async function startServer() {
 
   app.use(express.json({ limit: '50mb' }));
 
-  void refreshLabcordPosts().catch((error) => {
-    console.error("Initial Labcord warmup failed:", error);
+  void Promise.allSettled([refreshLabcordPosts(), refreshToolSupporterPosts()]).then((results) => {
+    const [labcordResult, toolSupporterResult] = results;
+    if (labcordResult.status === "rejected") {
+      console.error("Initial Labcord warmup failed:", labcordResult.reason);
+    }
+    if (toolSupporterResult.status === "rejected") {
+      console.error("Initial Tool Supporter warmup failed:", toolSupporterResult.reason);
+    }
   });
 
   app.get("/runtime-config.js", (_req, res) => {
@@ -207,6 +284,23 @@ async function startServer() {
         return res.json({ posts: labcordPostsCache, stale: true });
       }
       return res.status(500).json({ error: String(error?.message || "LABcord 게시물을 불러오지 못했습니다.") });
+    }
+  });
+
+  app.get("/api/tool-supporters", async (_req, res) => {
+    try {
+      const posts = await getToolSupporterPosts();
+      res.setHeader("Cache-Control", "no-store");
+      return res.json({ posts });
+    } catch (error: any) {
+      console.error("Tool Supporter notion fetch error:", error);
+      if (toolSupporterPostsCache) {
+        res.setHeader("Cache-Control", "no-store");
+        return res.json({ posts: toolSupporterPostsCache, stale: true });
+      }
+      return res
+        .status(500)
+        .json({ error: String(error?.message || "Tool Supporter 게시물을 불러오지 못했습니다.") });
     }
   });
 
