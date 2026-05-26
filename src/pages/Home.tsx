@@ -9,6 +9,9 @@ const CONTENT_LEFT = 239;
 const CONTENT_WIDTH = 1443;
 const POPUP_WIDTH = 1562;
 const POPUP_HEIGHT = 997;
+const LABCORD_BOARD_URL =
+  'https://www.notion.so/ae0d2817213d40869b39de9a057e9cde?v=d13740fc81a24bfd99964d449ce40812&source=copy_link';
+const LABCORD_TITLE_LIMIT = 46;
 
 type PopupKey = 'rotation' | 'object-creator' | 'logo-maker' | 'scene-creator';
 
@@ -29,8 +32,12 @@ type PopupConfig = {
 type LabcordPost = {
   id: string;
   title: string;
+  author: string;
   date: string;
+  url: string;
 };
+
+type LabcordStatus = 'loading' | 'ready' | 'error';
 
 const popupConfigs: Record<PopupKey, PopupConfig> = {
   rotation: {
@@ -130,6 +137,15 @@ function DecoImage({
   className?: string;
 }) {
   return <img src={src} alt={alt} style={style} className={className} draggable={false} />;
+}
+
+function truncateText(value: string, limit: number): string {
+  const chars = Array.from(value);
+  if (chars.length <= limit) {
+    return value;
+  }
+
+  return `${chars.slice(0, Math.max(limit - 3, 0)).join('')}...`;
 }
 
 function NavOverlay({
@@ -372,6 +388,7 @@ export default function Home() {
   const [availableWidth, setAvailableWidth] = useState(CONTENT_WIDTH);
   const [openPopup, setOpenPopup] = useState<PopupKey | null>(null);
   const [labcordPosts, setLabcordPosts] = useState<LabcordPost[]>([]);
+  const [labcordStatus, setLabcordStatus] = useState<LabcordStatus>('loading');
 
   useEffect(() => {
     const updateScale = () => {
@@ -415,6 +432,7 @@ export default function Home() {
 
   useEffect(() => {
     const controller = new AbortController();
+    setLabcordStatus('loading');
 
     fetch("/api/labcord/posts", { signal: controller.signal })
       .then(async (response) => {
@@ -425,7 +443,9 @@ export default function Home() {
         return response.json() as Promise<{ posts?: LabcordPost[] }>;
       })
       .then((data) => {
-        setLabcordPosts(Array.isArray(data.posts) ? data.posts : []);
+        const posts = Array.isArray(data.posts) ? data.posts : [];
+        setLabcordPosts(posts);
+        setLabcordStatus('ready');
       })
       .catch((error) => {
         if (controller.signal.aborted) {
@@ -434,6 +454,7 @@ export default function Home() {
 
         console.error(error);
         setLabcordPosts([]);
+        setLabcordStatus('error');
       });
 
     return () => controller.abort();
@@ -625,40 +646,75 @@ export default function Home() {
 
               <DecoImage src={`${ASSET_BASE}/048-LABcord.png`} style={abs(239, 2217, 234, 35)} />
               <DecoImage src={`${ASSET_BASE}/047-asset.svg`} style={abs(1504, 2220, 103, 60)} />
-              <DecoImage src={`${ASSET_BASE}/046-frame.svg`} style={abs(243, 2317, 1398, 729)} />
+              <button
+                type="button"
+                aria-label="LABCord 노션 게시판 열기"
+                onClick={() => window.open(LABCORD_BOARD_URL, '_blank', 'noopener,noreferrer')}
+                style={{ ...abs(1504, 2220, 103, 60), background: 'transparent' }}
+                className="z-20 cursor-pointer"
+              />
 
-              {labcordPosts.map((post, index) => {
-                const top = 2330 + index * 102;
-                return (
-                  <div key={post.id}>
-                    <div
-                      style={{
-                        ...abs(314, top, 1000, 84),
-                        fontSize: 30,
-                        fontWeight: index === 0 || index === 5 || index === 6 ? 700 : 500,
-                        lineHeight: '84px',
-                        letterSpacing: '-0.55px',
-                        color: '#000',
-                      }}
-                    >
-                      {post.title}
-                    </div>
-                    <div
-                      style={{
-                        ...abs(1463, top + 3, 160, 81),
-                        fontSize: 30,
-                        fontWeight: 500,
-                        lineHeight: '81px',
-                        letterSpacing: '-0.55px',
-                        color: '#000',
-                        textAlign: 'left',
-                      }}
-                    >
-                      {post.date}
-                    </div>
-                  </div>
-                );
-              })}
+              {labcordStatus === 'ready' && labcordPosts.length > 0 ? (
+                <>
+                  <DecoImage src={`${ASSET_BASE}/046-frame.svg`} style={abs(243, 2317, 1398, 729)} />
+                  {labcordPosts.map((post, index) => {
+                    const top = 2330 + index * 102;
+                    const displayTitle = truncateText(
+                      post.author ? `${post.title} - ${post.author}` : post.title,
+                      LABCORD_TITLE_LIMIT,
+                    );
+                    return (
+                      <div key={post.id}>
+                        <button
+                          type="button"
+                          aria-label={`${post.title} 노션 게시물 열기`}
+                          onClick={() => window.open(post.url, '_blank', 'noopener,noreferrer')}
+                          style={{ ...abs(314, top, 1310, 84), background: 'transparent' }}
+                          className="z-20 cursor-pointer"
+                        />
+                        <div
+                          style={{
+                            ...abs(314, top, 1000, 84),
+                            fontSize: 30,
+                            fontWeight: index === 0 || index === 5 || index === 6 ? 700 : 500,
+                            lineHeight: '84px',
+                            letterSpacing: '-0.55px',
+                            color: '#000',
+                          }}
+                        >
+                          {displayTitle}
+                        </div>
+                        <div
+                          style={{
+                            ...abs(1463, top + 3, 160, 81),
+                            fontSize: 30,
+                            fontWeight: 500,
+                            lineHeight: '81px',
+                            letterSpacing: '-0.55px',
+                            color: '#000',
+                            textAlign: 'left',
+                          }}
+                        >
+                          {post.date}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </>
+              ) : labcordStatus === 'loading' ? (
+                <div
+                  style={{
+                    ...abs(314, 2360, 800, 84),
+                    fontSize: 30,
+                    fontWeight: 500,
+                    lineHeight: '84px',
+                    letterSpacing: '-0.55px',
+                    color: '#000',
+                  }}
+                >
+                  LABcord 글을 불러오는 중입니다...
+                </div>
+              ) : null}
 
               <DecoImage src={`${ASSET_BASE}/004-Tool-Supporter.png`} style={abs(257, 3221, 354, 43)} />
 

@@ -14,6 +14,17 @@ type NotionRecordValue = {
   created_time?: number;
 };
 
+type LabcordPost = {
+  id: string;
+  title: string;
+  author: string;
+  date: string;
+  url: string;
+};
+
+let labcordPostsCache: LabcordPost[] | null = null;
+let labcordPostsInFlight: Promise<LabcordPost[]> | null = null;
+
 function getNotionTitle(value: NotionRecordValue | undefined): string {
   const title = value?.properties?.title;
   if (!Array.isArray(title)) {
@@ -44,37 +55,108 @@ function formatLabcordDate(timestamp: number | undefined): string {
     .replace(/\.$/, "");
 }
 
-async function getLabcordPosts() {
+function getNotionPersonIds(propertyValue: unknown): string[] {
+  if (!Array.isArray(propertyValue)) {
+    return [];
+  }
+
+  const ids: string[] = [];
+
+  for (const part of propertyValue) {
+    if (!Array.isArray(part) || !Array.isArray(part[1])) {
+      continue;
+    }
+
+    for (const token of part[1]) {
+      if (Array.isArray(token) && token[0] === "u" && typeof token[1] === "string") {
+        ids.push(token[1]);
+      }
+    }
+  }
+
+  return ids;
+}
+
+function getLabcordPostUrl(blockId: string): string {
+  return `https://www.notion.so/${blockId.replace(/-/g, "")}`;
+}
+
+async function fetchLabcordPostsFromNotion(): Promise<LabcordPost[]> {
   const recordMap = await notionApi.getPage(LABCORD_NOTION_PAGE_ID);
   const blockIds =
     recordMap.collection_query?.[LABCORD_NOTION_COLLECTION_ID]?.[LABCORD_NOTION_VIEW_ID]
       ?.collection_group_results?.blockIds || [];
 
-  const posts = blockIds
+  const records = blockIds
     .map((blockId: string) => {
       const entry = recordMap.block?.[blockId] as
         | { value?: { value?: NotionRecordValue } }
         | undefined;
       const value = entry?.value?.value;
-      const title = getNotionTitle(value);
 
-      if (!title) {
-        return null;
-      }
+      return {
+        blockId,
+        value,
+        title: getNotionTitle(value),
+        authorIds: getNotionPersonIds(value?.properties?.["|c`="]),
+      };
+    })
+    .filter((record) => Boolean(record.title));
+
+  const uniqueAuthorIds = Array.from(new Set(records.flatMap((record) => record.authorIds)));
+  const userResults =
+    uniqueAuthorIds.length > 0 ? await notionApi.getUsers(uniqueAuthorIds) : { results: [] };
+  const authorEntries = (userResults.results || []).flatMap((user) => {
+    const record = user as { value?: { id?: string; name?: string } };
+    return record?.value?.id && record?.value?.name ? [[record.value.id, record.value.name] as [string, string]] : [];
+  });
+  const authorMap = new Map(authorEntries);
+
+  const posts = records
+    .map(({ blockId, value, title, authorIds }) => {
+      const authors = authorIds
+        .map((authorId) => authorMap.get(authorId))
+        .filter((authorName): authorName is string => Boolean(authorName));
 
       return {
         id: blockId,
         title,
+        author: authors.join(", "),
         date: formatLabcordDate(value?.created_time),
+        url: getLabcordPostUrl(blockId),
         createdTime: value?.created_time || 0,
       };
     })
-    .filter((post): post is NonNullable<typeof post> => Boolean(post))
     .sort((a, b) => b.createdTime - a.createdTime)
     .slice(0, 7)
     .map(({ createdTime, ...post }) => post);
 
   return posts;
+}
+
+function refreshLabcordPosts(): Promise<LabcordPost[]> {
+  if (labcordPostsInFlight) {
+    return labcordPostsInFlight;
+  }
+
+  labcordPostsInFlight = fetchLabcordPostsFromNotion()
+    .then((posts) => {
+      labcordPostsCache = posts;
+      return posts;
+    })
+    .finally(() => {
+      labcordPostsInFlight = null;
+    });
+
+  return labcordPostsInFlight;
+}
+
+async function getLabcordPosts(): Promise<LabcordPost[]> {
+  if (labcordPostsCache) {
+    return labcordPostsCache;
+  }
+
+  return refreshLabcordPosts();
 }
 
 function getGeminiApiKey(): string {
@@ -101,6 +183,10 @@ async function startServer() {
 
   app.use(express.json({ limit: '50mb' }));
 
+  void refreshLabcordPosts().catch((error) => {
+    console.error("Initial Labcord warmup failed:", error);
+  });
+
   app.get("/runtime-config.js", (_req, res) => {
     const adsenseClientId = (process.env.ADSENSE_CLIENT_ID || "").trim();
     const payload = { ADSENSE_CLIENT_ID: adsenseClientId };
@@ -116,6 +202,10 @@ async function startServer() {
       return res.json({ posts });
     } catch (error: any) {
       console.error("Labcord notion fetch error:", error);
+      if (labcordPostsCache) {
+        res.setHeader("Cache-Control", "no-store");
+        return res.json({ posts: labcordPostsCache, stale: true });
+      }
       return res.status(500).json({ error: String(error?.message || "LABcord 게시물을 불러오지 못했습니다.") });
     }
   });
