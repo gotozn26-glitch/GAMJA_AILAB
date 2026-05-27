@@ -2,6 +2,8 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import Home from './pages/Home';
 
+const BongJoonHoPage = lazy(() => import('./pages/BongJoonHoPage'));
+const ChairSwapPage = lazy(() => import('./pages/ChairSwapPage'));
 const CreatorObjectPage = lazy(() => import('./pages/CreatorObjectPage'));
 const MultiViewPage = lazy(() => import('./pages/MultiViewPage'));
 const StoryboardDirectorPage = lazy(() => import('./pages/StoryboardDirectorPage'));
@@ -21,6 +23,8 @@ export default function App() {
       <Suspense fallback={<RouteFallback />}>
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/service/bongjoonho" element={<BongJoonHoPage />} />
+          <Route path="/service/chair-swap/*" element={<ChairSwapPage />} />
           <Route path="/service/multiview" element={<MultiViewPage />} />
           <Route path="/service/storyboard-director" element={<StoryboardDirectorPage />} />
           <Route path="/service/creator-object" element={<CreatorObjectPage />} />

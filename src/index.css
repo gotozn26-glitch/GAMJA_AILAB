@@ -4,9 +4,21 @@
 @theme {
   --color-primary: #35d0b2;
   --color-primary-hover: #2eb89d;
+  --color-secondary: #ef4444;
+  --color-background-light: #f6f8f6;
+  --color-background-dark: #102216;
+  --color-surface-light: #ffffff;
+  --color-surface-dark: #2a1515;
+  --color-text-main: #1b0d0d;
+  --color-text-sub: #9a4c4c;
+  --color-border-light: #e7cfcf;
+  --color-border-dark: #3a1a1a;
   --font-sans: "Pretendard", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Inter", "Pretendard", ui-sans-serif, system-ui, sans-serif;
 }
 
+@source "../Service/BongJoonHo/**/*.{ts,tsx}";
+@source "../Service/ChairSwap/**/*.{ts,tsx}";
 @source "../Service/CreatorObject/**/*.{ts,tsx}";
 @source "../Service/MultiView/**/*.{ts,tsx}";
 @source "../Service/StoryboardDirector/**/*.{ts,tsx}";
@@ -30,6 +42,11 @@ body {
 
 /* Rotation(MultiView) — 아이콘 폰트 (Outlined) */
 .material-symbols-outlined {
+  font-family: 'Material Symbols Outlined', sans-serif;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.material-icons {
   font-family: 'Material Symbols Outlined', sans-serif;
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
@@ -202,4 +219,70 @@ body {
 }
 .gamja-logomaker .animate-fade-in {
   animation: gamja-logomaker-fade-in 0.35s ease-out forwards;
+}
+
+.gamja-bong {
+  --color-primary: #13ec5b;
+  --color-secondary: #ef4444;
+  --color-background-light: #f6f8f6;
+  --color-background-dark: #102216;
+  font-family: "Inter", "Pretendard", ui-sans-serif, system-ui, sans-serif;
+}
+
+.gamja-bong .canvas-bg {
+  background: radial-gradient(circle at 50% 50%, #ffffff 0%, #e8ede9 100%);
+}
+
+.gamja-chair {
+  --color-primary: #ec1313;
+  --color-background-light: #fcf8f8;
+  --color-background-dark: #1a0f0f;
+  --color-surface-light: #ffffff;
+  --color-surface-dark: #2a1515;
+  --color-text-main: #1b0d0d;
+  --color-text-sub: #9a4c4c;
+  --color-border-light: #e7cfcf;
+  --color-border-dark: #3a1a1a;
+  font-family: "Inter", "Noto Sans KR", "Pretendard", ui-sans-serif, system-ui, sans-serif;
+}
+
+@keyframes gamja-chair-fade-in-up {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes gamja-chair-bounce {
+  0%,
+  100% {
+    transform: translateY(-10%);
+    animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+  }
+  50% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+  }
+}
+
+@keyframes gamja-chair-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.gamja-chair .animate-fade-in-up {
+  animation: gamja-chair-fade-in-up 0.5s ease-out forwards;
+}
+
+.gamja-chair .animate-bounce-chair {
+  animation: gamja-chair-bounce 1s infinite;
+}
+
+.gamja-chair .animate-shimmer {
+  animation: gamja-chair-shimmer 1.5s infinite;
 }

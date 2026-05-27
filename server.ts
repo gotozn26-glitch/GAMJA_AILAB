@@ -233,12 +233,72 @@ async function getToolSupporterPosts(): Promise<ToolSupporterPost[]> {
   return refreshToolSupporterPosts();
 }
 
-function getGeminiApiKey(): string {
-  return (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "")
+function sanitizeEnvValue(value: string): string {
+  return value
     .trim()
     .replace(/^"|"$/g, "")
     .replace(/^'|'$/g, "");
 }
+
+function getGeminiApiKey(): string {
+  return sanitizeEnvValue(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "");
+}
+
+function getYoungGeminiApiKey(): string {
+  return sanitizeEnvValue(process.env.YOUNG_GEMINI_API_KEY || "");
+}
+
+const CHAIR_SWAP_STYLE_GUIDES: Record<string, string> = {
+  Toss: `당신은 '토스(Toss)'의 UX 라이터입니다. 사용자가 직관적으로 이해할 수 있는 카피를 작성해야 합니다.
+[토스 라이팅 원칙]
+1. 한자어/전문용어 금지: '송금'->'보내기', '자금'->'돈', '완료되었습니다'->'보냈어요'.
+2. 기능이 아닌 혜택 강조: 시스템이 무엇을 했는지보다, 사용자가 무엇을 얻었는지 말하세요.
+3. 군더더기 제거: 수식어를 빼고 팩트만 전달하세요.
+4. 능동태 사용: '~됩니다' 대신 '합니다', '하세요'를 쓰세요.
+5. 불안감 제거: 행동하기 전에 명확한 정보를 제공하세요.`,
+  Witty: `당신은 '센스 있는 예능 작가'입니다. 평범한 문장을 뻔하지 않게, 무릎을 탁 치게 만드는 위트 있는 문구로 바꿔주세요.
+[작성 원칙]
+1. 의외성 부여: 뻔한 설명 대신 예상치 못한 비유나 반전을 넣으세요.
+2. 제4의 벽 넘기: 사용자와 공범이 된 것처럼 은근슬쩍 말을 건네세요.
+3. 유행어/밈 활용: 적절한 드립을 섞어 친근함을 극대화하세요. (비속어 금지)
+4. 솔직함: 친구에게 장난치듯 솔직하게 표현하세요.`,
+  Emotional: `당신은 '새벽 감성 에세이 작가'입니다. 사실적인 정보보다는 그 안에 담긴 분위기, 온도, 질감을 묘사하세요.
+[작성 원칙]
+1. 공감각적 표현: 시각, 청각, 촉각적인 단어를 사용해 장면을 그리듯 묘사하세요.
+2. 서술어의 부드러움: '~입니다' 대신 '~네요', '~인가 봐요'처럼 여운을 남겨 주세요.
+3. 여백의 미: 모든 것을 설명하려 하지 말고 상상의 공간을 남겨두세요.
+4. 위로와 공감: 따뜻한 톤을 유지하세요.`,
+  Impact: `당신은 '글로벌 브랜드의 카피라이터'입니다. 심장을 뛰게 만들고 즉각적인 행동을 유도하는 강렬한 카피를 쓰세요.
+[작성 원칙]
+1. 단문 승부: 접속사를 빼고, 짧고 명료한 문장으로 끊으세요.
+2. 명령형/청유형: '~할 수 있습니다' 대신 '하세요', '지금입니다', '시작해'로 밀어붙이세요.
+3. 형용사 절제: 화려한 수식어보다 힘 있는 명사와 동사 하나를 쓰세요.
+4. 자신감: 확신에 찬 긍정문을 사용하세요.`,
+  Japanese: `당신은 '일본 소설 번역가'입니다. 일본 문학이나 영화 특유의 섬세하고 약간은 번역투 같은 문체를 구사하세요.
+[작성 원칙]
+1. 번역투의 미학: '나 자신', '그것은' 등 주어를 명확히 하거나 수동태를 섞으세요.
+2. 구체적인 명사: '여름', '바람', '고양이', '자판기' 등 구체적 소재를 언급하세요.
+3. 담담한 관조: 감정을 폭발시키기보다 한 발짝 떨어져서 서술하세요.
+4. 계절감: 문맥에 맞다면 계절이나 날씨 이야기를 넌지시 섞으세요.`,
+  Baemin: `당신은 '배달의민족 마케터'입니다. 진지함을 뺀 B급 감성과 유쾌한 패러디로 무장한 카피를 작성하세요.
+[작성 원칙]
+1. 언어유희(아재개그): 라임을 맞추거나 동음이의어를 활용하세요.
+2. 포스터 감성: 굵은 폰트로 인쇄되었을 때 예쁜 짧은 문구를 만드세요.
+3. 음식 비유: 가능한 모든 상황을 먹는 것과 연결해 보세요.
+4. 뻔뻔함: 뻔뻔하고 당당하게 주장하세요.`,
+  Musinsa: `당신은 '무신사 매거진 에디터'입니다. 트렌드에 민감하고, 전문적이면서도 시니컬한 톤 앤 매너를 유지하세요.
+[작성 원칙]
+1. 한영 혼용: '느낌'->'Mood', '핏'->'Silhouette' 처럼 영단어를 자연스럽게 섞으세요.
+2. 디테일 강조: 소재, 질감, 디테일, 라인 등 구체적인 스펙을 언급하세요.
+3. 시니컬한 쿨함: 너무 친절하지 말고 쿨하고 약간은 건방진 태도를 취하세요.
+4. 단정적인 종결: '~인 것 같아요' 금지. '~다.', '~함.', 'The End.' 로 끝내세요.`,
+  Dry: `당신은 감정이 배제된 '데이터 분석가'입니다. 어떠한 감정이나 미사여구 없이, 오직 팩트만을 건조하고 사무적으로 전달하세요.
+[작성 원칙]
+1. 감정 어휘 삭제: 감정적/주관적 형용사를 모두 제거하세요.
+2. 개조식 서술: 극도로 짧은 문장, 혹은 명사형 종결('~함', '~임', '~완료', '~불가')을 사용하세요.
+3. 인사 생략: 의례적인 인사를 생략하고 바로 정보만 출력하세요.
+4. 객관화: 사용자를 '귀하'나 '사용자'로 칭하거나 현상 자체만 기술하세요.`,
+};
 
 function decodeDataUrl(s: string): { mimeType: string; data: string } {
   const raw = String(s || "");
@@ -667,6 +727,262 @@ async function startServer() {
         return res.status(401).json({ error: "Gemini API 키가 유효하지 않습니다." });
       }
       res.status(500).json({ error: message || "생성에 실패했습니다." });
+    }
+  });
+
+  app.post("/api/bongjoonho/analyze", async (req, res) => {
+    const { rotateX, rotateY, zoom } = req.body || {};
+    if (
+      typeof rotateX !== "number" ||
+      typeof rotateY !== "number" ||
+      typeof zoom !== "number"
+    ) {
+      return res.status(400).json({ error: "요청 형식이 올바르지 않습니다." });
+    }
+
+    const apiKey = getYoungGeminiApiKey();
+    if (!apiKey) {
+      return res.status(500).json({
+        error: "서버에 YOUNG_GEMINI_API_KEY가 설정되어 있지 않습니다.",
+      });
+    }
+
+    const model = (process.env.BONGJOONHO_GEMINI_MODEL || "").trim() || "gemini-2.5-flash";
+    const ai = new GoogleGenAI({ apiKey });
+
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: `현재 카메라는 3D 인물 캐릭터를 다음과 같이 비추고 있어:
+        - 수직 회전(Pitch): ${rotateX}도 (양수면 위에서 아래로, 음수면 아래서 위로)
+        - 수평 회전(Yaw): ${rotateY}도 (0도면 정면, 180도면 뒷모습)
+        - 확대 레벨(Zoom): ${zoom}배 (1.5 이상이면 근접 촬영, 0.7 이하면 원거리 촬영)
+
+        이 인물 배치 구도를 기술적 용어로 분석해줘.
+        분석 결과를 다음 JSON 구조로 반환해:
+        - angle: 촬영 각도의 명칭 (예: 하이 앵글, 로우 앵글, 아이 레벨 등)
+        - shotType: 샷의 종류 (예: 클로즈업, 바스트 샷, 웨이스트 샷, 니 샷, 풀 샷 등)
+        - meaning: 이 구도가 시각적으로 전달하는 정보나 인물의 공간적 위상 (한국어)
+        - symbolism: 이 각도에서 느껴지는 인물의 객관적인 인상과 시각적 특징 (한국어)`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              angle: { type: Type.STRING },
+              shotType: { type: Type.STRING },
+              meaning: { type: Type.STRING },
+              symbolism: { type: Type.STRING },
+            },
+            required: ["angle", "shotType", "meaning", "symbolism"],
+          },
+        },
+      });
+
+      let result: Record<string, string> = {};
+      try {
+        result = JSON.parse(response.text || "{}");
+      } catch {
+        result = {};
+      }
+
+      return res.json({
+        angle: result.angle || "",
+        shotType: result.shotType || "",
+        meaning: result.meaning || "",
+        symbolism: result.symbolism || "",
+      });
+    } catch (error: any) {
+      console.error("Bongjoonho analyze error:", error);
+      const message = String(error?.message || "");
+      if (message.includes("API key not valid") || message.includes("API_KEY_INVALID")) {
+        return res.status(401).json({ error: "YOUNG_GEMINI_API_KEY가 유효하지 않습니다." });
+      }
+      return res.status(500).json({ error: message || "분석에 실패했습니다." });
+    }
+  });
+
+  app.post("/api/chair-swap/summarize", async (req, res) => {
+    const { text, lockedPhrases, replaceablePhrases, targetLength } = req.body || {};
+    if (
+      typeof text !== "string" ||
+      !Array.isArray(lockedPhrases) ||
+      !Array.isArray(replaceablePhrases) ||
+      typeof targetLength !== "number"
+    ) {
+      return res.status(400).json({ error: "요청 형식이 올바르지 않습니다." });
+    }
+
+    const apiKey = getYoungGeminiApiKey();
+    if (!apiKey) {
+      return res.status(500).json({
+        error: "서버에 YOUNG_GEMINI_API_KEY가 설정되어 있지 않습니다.",
+      });
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
+    const model = (process.env.CHAIR_SWAP_TEXT_MODEL || "").trim() || "gemini-2.5-flash";
+    const prompt = `
+      다음 텍스트를 "의자뺏기" 컨셉으로 요약 및 축약해주세요.
+      의자뺏기 컨셉이란, 불필요한 미사여구를 제거하는 '삭제'를 넘어, 긴 문장의 구조를 완전히 재구성하여 가장 임팩트 있는 메시지만 남기는 '축약'을 수행하는 것입니다.
+
+      서로 다른 스타일의 결과물을 정확히 3개 생성해주세요.
+
+      [핵심 조건]
+      1. 보존할 문구 (잠금 처리됨): ${lockedPhrases.length > 0 ? lockedPhrases.join(", ") : "없음"} -> 이 단어들은 절대 바꾸지 마세요.
+      2. 교체할 문구 (교체 처리됨): ${replaceablePhrases.length > 0 ? replaceablePhrases.join(", ") : "없음"} -> 이 단어들은 의미가 비슷한 더 신선하거나 강렬한 유의어로 반드시 교체하세요.
+      3. 줄임말 활용 (중요): 웹에서 실제 대중적으로 활발히 사용되는 실제 있는 줄임말이 있다면 적극 활용하여 글자수를 줄이세요.
+      4. 나머지 문장 압축:
+         - 잠금 단어가 아닌 부분은 의미가 통하는 선에서 가장 짧은 단어를 선택하세요.
+         - 조사와 접속사는 과감히 삭제하세요.
+      5. 목표 글자 수: 공백 포함 약 ${targetLength}자 내외
+
+      [축약 및 교체 모범 답안 (참고용)]
+      예시 1: "명절에만 진행하는 최대 할인 기획 특별전" -> "명절 초특가 기획전."
+      예시 2: "화제의 두바이쫀득쿠키, 지금 바로 줄서지말고 에이블리에서 구매하세요" -> "두쫀쿠, 지금 에이블리에서 대기없이"
+      예시 3: "봄비 오는 지금 내 차 와이퍼 점검하셨나요?" -> "봄비시즌, 늦기전에 와이퍼 점검."
+
+      원본 텍스트:
+      ${text}
+    `;
+
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              results: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    summary: { type: Type.STRING },
+                    explanation: { type: Type.STRING },
+                  },
+                  required: ["summary", "explanation"],
+                },
+              },
+            },
+            required: ["results"],
+          },
+        },
+      });
+
+      let result: { results: { summary: string; explanation: string }[] } = { results: [] };
+      try {
+        result = JSON.parse(response.text || '{"results": []}');
+      } catch {
+        result = { results: [] };
+      }
+
+      return res.json({ results: Array.isArray(result.results) ? result.results : [] });
+    } catch (error: any) {
+      console.error("Chair swap summarize error:", error);
+      const message = String(error?.message || "");
+      if (message.includes("API key not valid") || message.includes("API_KEY_INVALID")) {
+        return res.status(401).json({ error: "YOUNG_GEMINI_API_KEY가 유효하지 않습니다." });
+      }
+      return res.status(500).json({ error: message || "요약에 실패했습니다." });
+    }
+  });
+
+  app.post("/api/chair-swap/image-match", async (req, res) => {
+    const { imageDataUrl, keywords, tone, maxLength } = req.body || {};
+    if (!imageDataUrl || typeof keywords !== "string" || typeof tone !== "string") {
+      return res.status(400).json({ error: "요청 형식이 올바르지 않습니다." });
+    }
+
+    const apiKey = getYoungGeminiApiKey();
+    if (!apiKey) {
+      return res.status(500).json({
+        error: "서버에 YOUNG_GEMINI_API_KEY가 설정되어 있지 않습니다.",
+      });
+    }
+
+    const image = decodeDataUrl(imageDataUrl);
+    if (!image.data) {
+      return res.status(400).json({ error: "이미지 데이터가 비어 있습니다." });
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
+    const model = (process.env.CHAIR_SWAP_IMAGE_MODEL || "").trim() || "gemini-2.5-flash";
+    const styleGuide = CHAIR_SWAP_STYLE_GUIDES[tone] || "전문 카피라이터";
+    const prompt = `
+      첨부된 이미지를 분석하고, 해당 이미지에 어울리는 창의적인 카피를 생성해주세요.
+      [페르소나] ${styleGuide}
+      [필수 조건]
+      1. 키워드 포함: [ ${keywords} ]
+      2. 작업 스타일: 이미지의 분위기와 맥락을 풍부하게 살리되, 지정된 글자 수를 절대적으로 준수하세요.
+      3. 글자 수 제한: ${
+        typeof maxLength === "number"
+          ? `공백 포함 정확히 '${maxLength}자 이내' (엄격히 준수, 초과 시 절대 안 됨)`
+          : "자유로운 길이"
+      }
+
+      [주의 사항]
+      ${
+        typeof maxLength === "number"
+          ? `- 메인 카피(text)는 반드시 ${maxLength}자 이하여야 합니다. 1자라도 초과하면 실패입니다.`
+          : ""
+      }
+      - 글자 수가 매우 적게 설정된 경우 핵심 명사나 파격적인 줄임말을 사용하여 임팩트 있게 축약하세요.
+
+      [결과 스키마]
+      - text: 메인 카피 문구
+      - subtext: 해당 카피의 전략적 의도
+      정확히 3가지 제안을 출력하세요.
+    `;
+
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: {
+          parts: [
+            { inlineData: { mimeType: image.mimeType, data: image.data } },
+            { text: prompt },
+          ],
+        },
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              copies: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    text: { type: Type.STRING },
+                    subtext: { type: Type.STRING },
+                  },
+                  required: ["text", "subtext"],
+                },
+              },
+            },
+            required: ["copies"],
+          },
+        },
+      });
+
+      let result: { copies: { text: string; subtext: string }[] } = { copies: [] };
+      try {
+        result = JSON.parse(response.text || '{"copies": []}');
+      } catch {
+        result = { copies: [] };
+      }
+
+      return res.json({ copies: Array.isArray(result.copies) ? result.copies : [] });
+    } catch (error: any) {
+      console.error("Chair swap image-match error:", error);
+      const message = String(error?.message || "");
+      if (message.includes("API key not valid") || message.includes("API_KEY_INVALID")) {
+        return res.status(401).json({ error: "YOUNG_GEMINI_API_KEY가 유효하지 않습니다." });
+      }
+      return res.status(500).json({ error: message || "이미지 매칭에 실패했습니다." });
     }
   });
 

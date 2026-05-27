@@ -42,8 +42,11 @@ const aspectRatioToSize: Record<DesignConfig["aspectRatio"], string> = {
   "16:9": "1536x1024",
 };
 
+const normalizeEnvValue = (value?: string) =>
+  (value || "").trim().replace(/^"|"$/g, "").replace(/^'|'$/g, "");
+
 const getClient = () => {
-  const apiKey = import.meta.env.CHAE_GPT_API_KEY;
+  const apiKey = normalizeEnvValue(import.meta.env.CHAE_GPT_API_KEY);
   if (!apiKey) {
     throw new Error("CHAE_GPT_API_KEY is missing. Set it in .env.local (see vite envPrefix).");
   }

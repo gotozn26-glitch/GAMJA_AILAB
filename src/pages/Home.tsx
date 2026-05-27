@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { Fragment, useEffect, useRef, useState, type CSSProperties } from 'react';
 
 const ASSET_BASE = '/page1/image';
 const POPUP_ASSET_BASE = '/page-pop/image';
@@ -869,6 +869,13 @@ export default function Home() {
 
               <DecoImage src={`${ASSET_BASE}/029-2.svg`} style={abs(730, 1393, 454, 304)} />
               <TextSwapIllustration />
+              <button
+                type="button"
+                aria-label="의자뺏기 카드 열기"
+                onClick={() => window.location.assign('/service/chair-swap')}
+                style={{ ...abs(730, 1393, 454, 304), background: 'transparent' }}
+                className="z-10 cursor-pointer"
+              />
               <div
                 style={{
                   ...abs(911, 1612, 120, 31),
@@ -892,9 +899,23 @@ export default function Home() {
                 텍스트 검수 및 텍스트를 교체합니다
               </div>
               <DecoImage src={`${ASSET_BASE}/036-btn.svg`} style={abs(1128, 1638, 38, 38)} />
+              <button
+                type="button"
+                aria-label="의자뺏기 서비스 열기"
+                onClick={() => window.location.assign('/service/chair-swap')}
+                style={{ ...abs(1118, 1628, 58, 58), background: 'transparent' }}
+                className="z-20 cursor-pointer"
+              />
 
               <DecoImage src={`${ASSET_BASE}/037-2.svg`} style={abs(1227, 1393, 454, 304)} />
               <DecoImage src={`${ASSET_BASE}/038-Group-3.svg`} style={abs(1325, 1415, 244, 188)} />
+              <button
+                type="button"
+                aria-label="봉준호 카드 열기"
+                onClick={() => window.location.assign('/service/bongjoonho')}
+                style={{ ...abs(1227, 1393, 454, 304), background: 'transparent' }}
+                className="z-10 cursor-pointer"
+              />
               <div
                 style={{
                   ...abs(1334, 1612, 226, 31),
@@ -920,6 +941,13 @@ export default function Home() {
                 카메라 앵글에 대한 프롬프트를 알려줍니다
               </div>
               <DecoImage src={`${ASSET_BASE}/039-btn.svg`} style={abs(1626, 1638, 38, 38)} />
+              <button
+                type="button"
+                aria-label="봉준호 서비스 열기"
+                onClick={() => window.location.assign('/service/bongjoonho')}
+                style={{ ...abs(1616, 1628, 58, 58), background: 'transparent' }}
+                className="z-20 cursor-pointer"
+              />
 
               <DecoImage src={`${ASSET_BASE}/040-2.svg`} style={abs(240, 1737, 454, 304)} />
               <DecoImage src={`${ASSET_BASE}/041-534.svg`} style={abs(255, 1752, 116, 41)} />
@@ -1032,7 +1060,18 @@ export default function Home() {
               {toolSupporterStatus === 'ready' && toolSupporterPosts.length > 0
                 ? toolSupporterPosts.slice(0, supporterCardLayouts.length).map((post, index) => {
                     const layout = supporterCardLayouts[index];
-                    return layout ? <SupporterCard key={post.id} {...layout} post={post} /> : null;
+                    return layout ? (
+                      <Fragment key={post.id}>
+                        <SupporterCard
+                          bg={layout.bg}
+                          chip={layout.chip}
+                          x={layout.x}
+                          y={layout.y}
+                          dark={layout.dark}
+                          post={post}
+                        />
+                      </Fragment>
+                    ) : null;
                   })
                 : null}
 
