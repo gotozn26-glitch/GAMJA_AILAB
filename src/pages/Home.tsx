@@ -35,15 +35,34 @@ const TITLE_BG_HEIGHT = 750;
 const TITLE_BG_TOP = 134;
 const HOME_LAYOUT_SCALE = 0.75;
 
-type PopupKey = 'rotation' | 'object-creator' | 'logo-maker' | 'scene-creator';
+type PopupPreviewLayer =
+  | {
+      kind: 'image';
+      src: string;
+      style: CSSProperties;
+    }
+  | {
+      kind: 'text';
+      text: string;
+      style: CSSProperties;
+    };
+
+type PopupKey =
+  | 'rotation'
+  | 'object-creator'
+  | 'logo-maker'
+  | 'chair-swap'
+  | 'bongjoonho'
+  | 'scene-creator';
 
 type PopupConfig = {
   key: PopupKey;
   title: string;
   route: string;
   mask: string;
-  preview: string;
-  previewStyle: CSSProperties;
+  preview?: string;
+  previewStyle?: CSSProperties;
+  previewLayers?: PopupPreviewLayer[];
   titleLeft: number;
   description: string;
   buttonBackground: string;
@@ -122,6 +141,60 @@ const popupConfigs: Record<PopupKey, PopupConfig> = {
     buttonBackground: '020-2.svg',
     buttonIcon: '015-8.png',
     buttonIconStyle: abs(32, 16, 28, 38),
+  },
+  'chair-swap': {
+    key: 'chair-swap',
+    title: '의자뺏기',
+    route: '/service/chair-swap',
+    mask: '022-Mask-group.svg',
+    previewLayers: [
+      { kind: 'image', src: '023-4.svg', style: abs(168, 208, 376, 97) },
+      { kind: 'image', src: '024-2.svg', style: abs(211, 199, 17, 104) },
+      { kind: 'image', src: '025-2.svg', style: abs(485, 199, 17, 104) },
+      {
+        kind: 'image',
+        src: '026-3.svg',
+        style: { ...abs(219, 216, 276, 83), opacity: 0.1 },
+      },
+      {
+        kind: 'text',
+        text: 'TEXT',
+        style: {
+          ...abs(241, 222, 240, 84),
+          fontSize: 100,
+          fontWeight: 500,
+          lineHeight: 'normal',
+          letterSpacing: '-2.5px',
+          color: '#000',
+        },
+      },
+    ],
+    titleLeft: 639,
+    description: `의자뺏기는 텍스트 검수 및 카피라이팅에 특화된 웹앱입니다.
+가이드라인 위반 단어나 과도하게 긴 단어를 식별하여 유의어 및 축약어로 자동 교체해 줍니다.
+또한, 사용자가 이미지를 삽입하고 필수 키워드와 톤앤매너를 지정하면,
+설정한 글자 수에 맞춰 최적화된 마케팅 카피를 자동으로 생성하는 기능을 제공합니다.`,
+    buttonBackground: '027-2.svg',
+    buttonIcon: '028-7.png',
+    buttonIconStyle: abs(27, 15, 35, 40),
+  },
+  bongjoonho: {
+    key: 'bongjoonho',
+    title: '봉준호',
+    route: '/service/bongjoonho',
+    mask: '030-Mask-group.svg',
+    previewLayers: [
+      { kind: 'image', src: '031-icon_bong.png', style: abs(239, 151, 130, 242) },
+      { kind: 'image', src: '032-asset.png', style: abs(333, 213, 140, 131) },
+    ],
+    titleLeft: 639,
+    description: `봉준호는 이미지 생성 및 영상 연출 프롬프트 작성 시 정확한 시각적 구도를 설정하도록 돕는 웹앱입니다.
+사용자가 프롬프트를 작성할 때 혼동하기 쉬운
+카메라 각도(Angle)와 프레임(Frame) 종류를 명확하게 안내합니다.
+이를 통해 의도한 연출 방향에 맞는 정확한 구도와 뷰를 프롬프트에 반영할 수 있도록 지원합니다.`,
+    buttonBackground: '033-2.svg',
+    buttonIcon: '028-7.png',
+    buttonIconStyle: abs(27, 15, 35, 40),
   },
   'scene-creator': {
     key: 'scene-creator',
@@ -428,7 +501,25 @@ function PopupModal({
               <DecoImage src={`${POPUP_ASSET_BASE}/003-1.svg`} style={abs(0, 0, 72, 72)} />
             </button>
 
-            <DecoImage src={`${POPUP_ASSET_BASE}/${popup.preview}`} style={popup.previewStyle} />
+            {popup.preview && popup.previewStyle ? (
+              <DecoImage src={`${POPUP_ASSET_BASE}/${popup.preview}`} style={popup.previewStyle} />
+            ) : null}
+            {popup.previewLayers?.map((layer, index) =>
+              layer.kind === 'image' ? (
+                <DecoImage
+                  key={`${popup.key}-preview-image-${index}`}
+                  src={`${POPUP_ASSET_BASE}/${layer.src}`}
+                  style={layer.style}
+                />
+              ) : (
+                <div
+                  key={`${popup.key}-preview-text-${index}`}
+                  style={layer.style}
+                >
+                  {layer.text}
+                </div>
+              ),
+            )}
 
             <div
               style={{
@@ -872,7 +963,7 @@ export default function Home() {
               <button
                 type="button"
                 aria-label="의자뺏기 카드 열기"
-                onClick={() => window.location.assign('/service/chair-swap')}
+                onClick={() => setOpenPopup('chair-swap')}
                 style={{ ...abs(730, 1393, 454, 304), background: 'transparent' }}
                 className="z-10 cursor-pointer"
               />
@@ -902,7 +993,7 @@ export default function Home() {
               <button
                 type="button"
                 aria-label="의자뺏기 서비스 열기"
-                onClick={() => window.location.assign('/service/chair-swap')}
+                onClick={() => setOpenPopup('chair-swap')}
                 style={{ ...abs(1118, 1628, 58, 58), background: 'transparent' }}
                 className="z-20 cursor-pointer"
               />
@@ -912,7 +1003,7 @@ export default function Home() {
               <button
                 type="button"
                 aria-label="봉준호 카드 열기"
-                onClick={() => window.location.assign('/service/bongjoonho')}
+                onClick={() => setOpenPopup('bongjoonho')}
                 style={{ ...abs(1227, 1393, 454, 304), background: 'transparent' }}
                 className="z-10 cursor-pointer"
               />
@@ -944,7 +1035,7 @@ export default function Home() {
               <button
                 type="button"
                 aria-label="봉준호 서비스 열기"
-                onClick={() => window.location.assign('/service/bongjoonho')}
+                onClick={() => setOpenPopup('bongjoonho')}
                 style={{ ...abs(1616, 1628, 58, 58), background: 'transparent' }}
                 className="z-20 cursor-pointer"
               />
