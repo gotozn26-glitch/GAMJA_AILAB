@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { SummaryScreen } from './components/SummaryScreen';
 import { ImageMatchScreen } from './components/ImageMatchScreen';
+import { LoadingScreen } from './components/LoadingScreen';
 
 const BASE_ROUTE = '/service/chair-swap';
 
@@ -8,13 +9,13 @@ function NavHeader() {
   const navigate = useNavigate();
 
   return (
-    <header className="w-full bg-background-light pt-8 pb-4">
+    <header className="w-full bg-background-light pt-8 pb-4 dark:bg-background-dark">
       <div className="mx-auto flex max-w-[1280px] flex-col items-center px-6 md:px-10">
         <div className="group mb-6 flex cursor-pointer items-center gap-3" onClick={() => navigate('/')}>
           <div className="flex size-10 items-center justify-center rounded-xl bg-primary text-white shadow-lg shadow-primary/20 transition-transform group-hover:scale-110">
             <span className="material-symbols-outlined text-2xl font-bold">chair</span>
           </div>
-          <h1 className="text-3xl font-black tracking-tighter text-text-main">의자뺏기</h1>
+          <h1 className="text-3xl font-black tracking-tighter text-text-main dark:text-white">의자뺏기</h1>
         </div>
       </div>
     </header>
@@ -32,7 +33,7 @@ function TabNavigation() {
 
   return (
     <nav className="mb-12 flex w-full justify-center">
-      <div className="flex rounded-2xl border border-border-light bg-white p-1.5 shadow-sm">
+      <div className="flex rounded-2xl border border-border-light bg-white p-1.5 shadow-sm dark:border-border-dark dark:bg-surface-dark">
         {tabs.map((tab) => {
           const isActive = currentPath === tab.path;
           return (
@@ -42,7 +43,7 @@ function TabNavigation() {
               className={`rounded-xl px-6 py-3 text-sm font-bold transition-all md:px-10 md:text-base ${
                 isActive
                   ? 'scale-105 bg-primary text-white shadow-md shadow-primary/20'
-                  : 'text-text-sub hover:bg-primary/5 hover:text-primary'
+                  : 'text-text-sub hover:bg-primary/5 hover:text-primary dark:text-gray-400'
               }`}
             >
               {tab.label}
@@ -57,22 +58,29 @@ function TabNavigation() {
 export default function ChairSwapApp() {
   const location = useLocation();
   const isImageMatch = location.pathname === `${BASE_ROUTE}/image-match`;
+  const isLoading = location.pathname === `${BASE_ROUTE}/loading`;
 
   return (
-    <div className="min-h-screen bg-background-light text-text-main">
-      <NavHeader />
-      <main className="mx-auto flex w-full max-w-[1280px] flex-col px-4 md:px-6">
-        <TabNavigation />
-        <div className="flex-1">{isImageMatch ? <ImageMatchScreen /> : <SummaryScreen />}</div>
-      </main>
-      <footer className="mt-12 py-12 text-center">
-        <div className="mx-auto max-w-7xl px-6 text-xs font-medium text-gray-400">
-          <p className="mb-2">© 2026 의자뺏기. 모든 의자를 뺏습니다. pplee.</p>
-          <p className="opacity-50 uppercase tracking-widest">Copywriting Tool</p>
-        </div>
-      </footer>
+    <div className="min-h-screen bg-background-light text-text-main dark:bg-background-dark">
+      {isLoading ? (
+        <LoadingScreen />
+      ) : (
+        <>
+          <NavHeader />
+          <main className="mx-auto flex w-full max-w-[1280px] flex-col px-4 md:px-6">
+            <TabNavigation />
+            <div className="flex-1">{isImageMatch ? <ImageMatchScreen /> : <SummaryScreen />}</div>
+          </main>
+          <footer className="mt-12 py-12 text-center">
+            <div className="mx-auto max-w-7xl px-6 text-xs font-medium text-gray-400">
+              <p className="mb-2">© 2026 의자뺏기. 모든 의자를 뺏습니다. pplee.</p>
+              <p className="opacity-50 uppercase tracking-widest">Copywriting Tool</p>
+            </div>
+          </footer>
+        </>
+      )}
       <div
-        className="pointer-events-none fixed inset-0 z-[-1] opacity-[0.02]"
+        className="pointer-events-none fixed inset-0 z-[-1] opacity-[0.02] dark:opacity-[0.04]"
         style={{
           backgroundImage: 'radial-gradient(#ec1313 1px, transparent 1px)',
           backgroundSize: '32px 32px',
