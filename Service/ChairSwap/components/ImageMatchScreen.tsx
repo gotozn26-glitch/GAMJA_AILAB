@@ -127,7 +127,7 @@ export function ImageMatchScreen() {
   return (
     <div className="animate-fade-in-up pb-20">
       <div className="mb-10 text-left">
-        <h2 className="mb-2 text-4xl font-black tracking-tight text-stone-900 dark:text-white">
+        <h2 className="mb-2 text-4xl font-black tracking-tight text-stone-900">
           이미지 매칭
         </h2>
         <p className="text-lg font-medium text-primary/80">
@@ -137,7 +137,7 @@ export function ImageMatchScreen() {
 
       <div className="grid grid-cols-1 items-stretch gap-10 lg:grid-cols-12">
         <div className="flex flex-col lg:col-span-6">
-          <div className="relative flex min-h-[500px] flex-1 items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-border-light bg-white shadow-inner transition-all hover:bg-primary/5 dark:border-border-dark dark:bg-surface-dark">
+          <div className="relative flex min-h-[500px] flex-1 items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-border-light bg-white shadow-inner transition-all hover:bg-primary/5">
             {image ? (
               <>
                 <img src={image} className="h-full w-full object-cover" alt="Preview" />
@@ -159,7 +159,7 @@ export function ImageMatchScreen() {
                     <span className="material-symbols-outlined text-4xl">add_photo_alternate</span>
                   </div>
                   <div className="text-center">
-                    <p className="mb-1 text-xl font-bold text-stone-900 dark:text-white">이미지 업로드</p>
+                    <p className="mb-1 text-xl font-bold text-stone-900">이미지 업로드</p>
                     <p className="text-sm text-stone-400">클릭하거나 파일을 드래그하세요</p>
                   </div>
                 </div>
@@ -171,8 +171,8 @@ export function ImageMatchScreen() {
         <div className="flex flex-col justify-between gap-8 lg:col-span-6">
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-3">
-              <span className="text-lg font-black text-stone-900 dark:text-white">필수 키워드</span>
-              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border-light bg-white p-3 transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 dark:border-border-dark dark:bg-surface-dark">
+              <span className="text-lg font-black text-stone-900">필수 키워드</span>
+              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border-light bg-white p-3 transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
                 {tagList.map((tag, index) => (
                   <span
                     key={`${tag}-${index}`}
@@ -195,7 +195,7 @@ export function ImageMatchScreen() {
             </div>
 
             <div className="flex flex-col gap-3">
-              <span className="text-lg font-black text-stone-900 dark:text-white">톤앤매너</span>
+              <span className="text-lg font-black text-stone-900">톤앤매너</span>
               <div className="grid grid-cols-4 gap-2">
                 {TONES.map((item) => (
                   <button
@@ -204,7 +204,7 @@ export function ImageMatchScreen() {
                     className={`rounded-xl border p-3 text-sm font-bold transition-all ${
                       tone === item.id
                         ? 'border-primary bg-primary text-white shadow-lg shadow-primary/20'
-                        : 'border-border-light bg-white hover:border-primary/50 dark:border-border-dark dark:bg-surface-dark'
+                        : 'border-border-light bg-white hover:border-primary/50'
                     }`}
                   >
                     {item.label}
@@ -215,7 +215,7 @@ export function ImageMatchScreen() {
 
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
-                <span className="text-lg font-black text-stone-900 dark:text-white">
+                <span className="text-lg font-black text-stone-900">
                   글자 수 제한 (엄격 준수)
                 </span>
                 {maxLength !== '' ? (
@@ -233,8 +233,8 @@ export function ImageMatchScreen() {
                   }
                   className={`w-full rounded-xl border p-4 pr-12 text-base outline-none transition-all ${
                     maxLength !== ''
-                      ? 'border-primary bg-white ring-2 ring-primary/10 shadow-lg shadow-primary/5 dark:bg-surface-dark'
-                      : 'border-border-light bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-border-dark dark:bg-surface-dark'
+                      ? 'border-primary bg-white ring-2 ring-primary/10 shadow-lg shadow-primary/5'
+                      : 'border-border-light bg-white focus:border-primary focus:ring-2 focus:ring-primary/20'
                   }`}
                   placeholder="비워두면 무제한으로 생성됩니다"
                 />
@@ -271,8 +271,8 @@ export function ImageMatchScreen() {
             <AdBanner />
 
             {errorStatus ? (
-              <div className="animate-fade-in-up rounded-xl border border-red-200 bg-red-50 p-4 text-center dark:border-red-900/20 dark:bg-red-900/10">
-                <p className="mb-2 text-sm font-bold text-red-700 dark:text-red-400">
+              <div className="animate-fade-in-up rounded-xl border border-red-200 bg-red-50 p-4 text-center">
+                <p className="mb-2 text-sm font-bold text-red-700">
                   {errorStatus}
                 </p>
                 <button
@@ -288,7 +288,7 @@ export function ImageMatchScreen() {
       </div>
 
       {results.length > 0 && !errorStatus ? (
-        <div className="animate-fade-in-up mt-16 border-t border-border-light pt-12 dark:border-border-dark">
+        <div className="animate-fade-in-up mt-16 border-t border-border-light pt-12">
           <h3 className="mb-10 flex items-center gap-3 text-3xl font-black">
             <span className="material-symbols-outlined text-4xl text-primary">auto_awesome</span>
             의자뺏기 이미지 매칭 결과
@@ -297,7 +297,7 @@ export function ImageMatchScreen() {
             {results.map((result, index) => (
               <div
                 key={`${result.text}-${index}`}
-                className="flex min-h-[350px] flex-col overflow-hidden rounded-3xl border border-border-light bg-white shadow-2xl dark:border-border-dark dark:bg-surface-dark md:flex-row"
+                className="flex min-h-[350px] flex-col overflow-hidden rounded-3xl border border-border-light bg-white shadow-2xl md:flex-row"
               >
                 <div className="h-64 w-full overflow-hidden bg-stone-100 md:h-auto md:w-1/3">
                   <img src={image!} className="h-full w-full object-cover transition-transform duration-700 hover:scale-105" alt="Result visual" />
@@ -334,7 +334,7 @@ export function ImageMatchScreen() {
                         id={`resultBox-${index}`}
                         value={editableResults[index] || ''}
                         onChange={(event) => handleResultChange(index, event.target.value)}
-                        className="w-full resize-none border-none bg-transparent p-0 text-4xl font-black leading-tight text-stone-900 focus:ring-0 dark:text-white"
+                        className="w-full resize-none border-none bg-transparent p-0 text-4xl font-black leading-tight text-stone-900 focus:ring-0"
                         rows={2}
                         spellCheck={false}
                       />
@@ -343,10 +343,10 @@ export function ImageMatchScreen() {
                       </span>
                     </div>
 
-                    <div className="flex gap-4 rounded-2xl border border-stone-100 bg-stone-50 p-6 transition-all hover:border-primary/20 dark:border-white/5 dark:bg-white/5">
+                    <div className="flex gap-4 rounded-2xl border border-stone-100 bg-stone-50 p-6 transition-all hover:border-primary/20">
                       <span className="material-symbols-outlined mt-0.5 text-primary/40">lightbulb</span>
                       <div className="flex-1">
-                        <p className="whitespace-pre-wrap text-base leading-relaxed text-stone-500 dark:text-stone-400">
+                        <p className="whitespace-pre-wrap text-base leading-relaxed text-stone-500">
                           {result.subtext || '분석된 카피 의도가 여기에 표시됩니다.'}
                         </p>
                       </div>
@@ -355,7 +355,7 @@ export function ImageMatchScreen() {
                     <div className="pt-2">
                       <button
                         onClick={() => copyAndLog(index)}
-                        className="flex items-center gap-2 rounded-full bg-stone-900 px-8 py-4 text-sm font-bold text-white shadow-xl shadow-stone-900/10 transition-all active:scale-95 hover:scale-105 dark:bg-white dark:text-stone-900"
+                        className="flex items-center gap-2 rounded-full bg-stone-900 px-8 py-4 text-sm font-bold text-white shadow-xl shadow-stone-900/10 transition-all active:scale-95 hover:scale-105"
                       >
                         <span className="material-symbols-outlined text-lg">content_copy</span>
                         최종 카피 복사 및 피드백

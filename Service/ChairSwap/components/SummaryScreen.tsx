@@ -101,7 +101,7 @@ export function SummaryScreen() {
   return (
     <div className="animate-fade-in-up flex flex-1 flex-col pb-20">
       <div className="mb-10 text-left">
-        <h2 className="mb-2 text-4xl font-black tracking-tight text-stone-900 dark:text-white">
+        <h2 className="mb-2 text-4xl font-black tracking-tight text-stone-900">
           핵심만 남기고 의자를 뺏으세요
         </h2>
         <p className="text-lg font-medium text-primary/80">
@@ -113,8 +113,8 @@ export function SummaryScreen() {
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
         <div className="flex flex-col gap-4">
-          <div className="relative flex min-h-[400px] flex-col overflow-hidden rounded-2xl border border-border-light bg-surface-light p-1 shadow-sm dark:border-border-dark dark:bg-surface-dark">
-            <div className="flex items-center justify-between border-b border-border-light bg-white/50 px-5 py-3 dark:border-border-dark dark:bg-black/20">
+          <div className="relative flex min-h-[400px] flex-col overflow-hidden rounded-2xl border border-border-light bg-surface-light p-1 shadow-sm">
+            <div className="flex items-center justify-between border-b border-border-light bg-white/50 px-5 py-3">
               <span className="text-xs font-bold uppercase tracking-wider text-text-sub">
                 Original Text
               </span>
@@ -145,7 +145,7 @@ export function SummaryScreen() {
           </div>
 
           <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
-            <div className="flex items-center gap-3 rounded-xl border border-border-light bg-white px-4 py-2 dark:bg-surface-dark">
+            <div className="flex items-center gap-3 rounded-xl border border-border-light bg-white px-4 py-2">
               <span className="text-sm font-bold">목표 글자 수</span>
               <input
                 type="number"
@@ -170,15 +170,15 @@ export function SummaryScreen() {
           <AdBanner className="mt-4" />
         </div>
 
-        <div className="flex min-h-[400px] flex-col rounded-2xl border border-border-light bg-white p-6 dark:border-border-dark dark:bg-surface-dark">
+        <div className="flex min-h-[400px] flex-col rounded-2xl border border-border-light bg-white p-6">
           <h3 className="mb-6 text-xs font-bold uppercase tracking-widest text-primary">Results</h3>
 
           {errorStatus ? (
-            <div className="animate-fade-in-up flex flex-1 flex-col items-center justify-center rounded-2xl border border-red-100 bg-red-50 p-6 text-center dark:bg-red-900/10">
+            <div className="animate-fade-in-up flex flex-1 flex-col items-center justify-center rounded-2xl border border-red-100 bg-red-50 p-6 text-center">
               <span className="material-symbols-outlined mb-4 text-4xl text-red-500">
                 warning
               </span>
-              <p className="mb-4 font-bold text-red-700 dark:text-red-400">{errorStatus}</p>
+              <p className="mb-4 font-bold text-red-700">{errorStatus}</p>
               <button
                 onClick={handleSummarize}
                 className="font-black text-primary underline underline-offset-4 hover:text-red-800"
@@ -192,7 +192,7 @@ export function SummaryScreen() {
                 {results.map((result, index) => (
                   <div
                     key={`${result.summary}-${index}`}
-                    className="animate-fade-in-up rounded-xl border border-stone-100 bg-stone-50 p-5 dark:bg-black/20"
+                    className="animate-fade-in-up rounded-xl border border-stone-100 bg-stone-50 p-5"
                     style={{ animationDelay: `${index * 0.1}s` }}
                   >
                     <p className="mb-3 text-xl font-black">"{result.summary}"</p>
