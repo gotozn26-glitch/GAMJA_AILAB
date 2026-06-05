@@ -436,6 +436,14 @@ async function startServer() {
       if (message.includes("API key not valid") || message.includes("API_KEY_INVALID")) {
         return res.status(401).json({ error: "Gemini API 키가 유효하지 않습니다. Firebase 환경변수(GEMINI_API_KEY 또는 GOOGLE_API_KEY)를 다시 확인해 주세요." });
       }
+      if (
+        message.includes("429") ||
+        message.includes("RESOURCE_EXHAUSTED") ||
+        message.toLowerCase().includes("prepayment credits are depleted") ||
+        message.toLowerCase().includes("quota exceeded")
+      ) {
+        return res.status(429).json({ error: "크레딧이 부족해요 ㅠㅠ 내일 다시 시도해주세요." });
+      }
       res.status(500).json({ error: message || "생성에 실패했습니다." });
     }
   });
