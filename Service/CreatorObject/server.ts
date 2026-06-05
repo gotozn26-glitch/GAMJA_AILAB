@@ -10,14 +10,6 @@ async function startServer() {
 
   app.use(express.json({ limit: '50mb' }));
 
-  app.get("/runtime-config.js", (_req, res) => {
-    const adsenseClientId = (process.env.ADSENSE_CLIENT_ID || "").trim();
-    const payload = { ADSENSE_CLIENT_ID: adsenseClientId };
-    res.setHeader("Content-Type", "application/javascript; charset=utf-8");
-    res.setHeader("Cache-Control", "no-store");
-    res.send(`window.__APP_CONFIG__ = ${JSON.stringify(payload)};`);
-  });
-
   // [1순위] Gemini API Proxy Route (감자님의 소중한 로직)
   app.post("/api/generate", async (req, res) => {
     const { keyword, styleSuffix, referenceImageBase64, variationIndex } = req.body;

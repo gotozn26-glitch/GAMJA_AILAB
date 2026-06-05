@@ -327,14 +327,6 @@ async function startServer() {
     }
   });
 
-  app.get("/runtime-config.js", (_req, res) => {
-    const adsenseClientId = (process.env.ADSENSE_CLIENT_ID || "").trim();
-    const payload = { ADSENSE_CLIENT_ID: adsenseClientId };
-    res.setHeader("Content-Type", "application/javascript; charset=utf-8");
-    res.setHeader("Cache-Control", "no-store");
-    res.send(`window.__APP_CONFIG__ = ${JSON.stringify(payload)};`);
-  });
-
   app.get("/api/labcord/posts", async (_req, res) => {
     try {
       const posts = await getLabcordPosts();

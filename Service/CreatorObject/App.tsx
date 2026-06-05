@@ -4,48 +4,6 @@ import { STYLES } from './constants';
 import { StyleConfig, GeneratedVariation, GenerationStatus } from './types';
 import { geminiService } from './services/geminiService';
 
-
-/* --- google adsense banner start --- */
-import { useEffect } from 'react';
-
-declare global {
-  interface Window {
-    __APP_CONFIG__?: {
-      ADSENSE_CLIENT_ID?: string;
-    };
-    adsbygoogle?: any[];
-  }
-}
-
-const AdBanner = ({ adClientId }: { adClientId: string | null }) => {
-  useEffect(() => {
-    if (!adClientId) return;
-    try {
-      (window.adsbygoogle = window.adsbygoogle || []).push({});
-    } catch (e) {
-      console.error("AdSense error", e);
-    }
-  }, [adClientId]);
-
-  if (!adClientId) return null;
-
-  return (
-    <div style={{ textAlign: 'center', margin: '20px 0', minHeight: '100px' }}>
-      <ins className="adsbygoogle"
-           style={{ display: 'block' }}
-           data-ad-client={adClientId}
-           data-ad-slot="9414681583"
-           data-ad-format="auto"
-           data-full-width-responsive="true"></ins>
-    </div>
-  );
-};
-
-/* export default AdBanner; */
-
-/* --- google adsense banner end --- */
-
-
 const AppContent: React.FC = () => {
   const [selectedStyle, setSelectedStyle] = useState<StyleConfig>(STYLES[0]);
   const [keyword, setKeyword] = useState('');
@@ -54,25 +12,8 @@ const AppContent: React.FC = () => {
   const [results, setResults] = useState<GeneratedVariation[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [adsenseClientId, setAdsenseClientId] = useState<string | null>(null);
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const clientId = window.__APP_CONFIG__?.ADSENSE_CLIENT_ID?.trim();
-    if (!clientId) return;
-
-    setAdsenseClientId(clientId);
-
-    if (document.querySelector('script[data-gamja-adsense]')) return;
-
-    const script = document.createElement('script');
-    script.async = true;
-    script.crossOrigin = 'anonymous';
-    script.dataset.gamjaAdsense = 'true';
-    script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(clientId)}`;
-    document.head.appendChild(script);
-  }, []);
 
   const processFile = (file: File) => {
     if (file && file.type.startsWith('image/')) {
@@ -280,12 +221,6 @@ const AppContent: React.FC = () => {
               <p className="text-2xl font-black uppercase tracking-[0.2em]">Ready to Create</p>
             </div>
           )}
-
-          {results.length > 0 ? (
-            <div className="mb-10">
-              <AdBanner adClientId={adsenseClientId} />
-            </div>
-          ) : null}
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10">
             {results.map((res, i) => (
