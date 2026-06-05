@@ -14,8 +14,6 @@ declare global {
       ADSENSE_CLIENT_ID?: string;
     };
     adsbygoogle?: any[];
-    adBreak?: (options: Record<string, unknown>) => void;
-    adConfig?: (options: Record<string, unknown>) => void;
   }
 }
 
@@ -53,12 +51,10 @@ const AppContent: React.FC = () => {
   const [keyword, setKeyword] = useState('');
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const [status, setStatus] = useState<GenerationStatus>('idle');
-  const [isAdPlaying, setIsAdPlaying] = useState(false);
   const [results, setResults] = useState<GeneratedVariation[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [adsenseClientId, setAdsenseClientId] = useState<string | null>(null);
-  const [isAdSdkReady, setIsAdSdkReady] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -68,38 +64,13 @@ const AppContent: React.FC = () => {
 
     setAdsenseClientId(clientId);
 
-    // adBreak는 H5/Ad Placement 등 일부 환경에서만 노출됩니다. 일반 디스플레이 AdSense만 쓰면 없을 수 있음.
-    if (typeof window.adBreak === 'function') {
-      setIsAdSdkReady(true);
-      try {
-        window.adConfig?.({
-          preloadAdBreaks: 'on',
-          sound: 'on',
-        });
-      } catch (e) {
-        console.error('adConfig init error:', e);
-      }
-      return;
-    }
+    if (document.querySelector('script[data-gamja-adsense]')) return;
 
     const script = document.createElement('script');
     script.async = true;
     script.crossOrigin = 'anonymous';
+    script.dataset.gamjaAdsense = 'true';
     script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(clientId)}`;
-    script.onload = () => {
-      setIsAdSdkReady(true);
-      try {
-        window.adConfig?.({
-          preloadAdBreaks: 'on',
-          sound: 'on',
-        });
-      } catch (e) {
-        console.error('adConfig init error:', e);
-      }
-    };
-    script.onerror = () => {
-      setIsAdSdkReady(false);
-    };
     document.head.appendChild(script);
   }, []);
 
@@ -131,71 +102,6 @@ const AppContent: React.FC = () => {
     setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
     if (file) processFile(file);
-  };
-
-  const showInterstitialAd = async (): Promise<boolean> => {
-    return new Promise<boolean>((resolve) => {
-      const invokeAdBreak = () => {
-        const adBreak = window.adBreak;
-        if (typeof adBreak !== 'function') {
-          resolve(true);
-          return;
-        }
-
-        let settled = false;
-        let adStarted = false;
-        const done = () => {
-          if (settled) return;
-          settled = true;
-          setIsAdPlaying(false);
-          resolve(adStarted);
-        };
-
-        const timeoutId = window.setTimeout(done, 12000);
-
-        try {
-          adBreak({
-            type: 'browse',
-            name: 'generate-artifact',
-            beforeAd: () => {
-              adStarted = true;
-              setIsAdPlaying(true);
-            },
-            afterAd: () => {
-              window.clearTimeout(timeoutId);
-              done();
-            },
-            adBreakDone: () => {
-              window.clearTimeout(timeoutId);
-              done();
-            },
-          });
-        } catch (e) {
-          console.error('Ad break error:', e);
-          window.clearTimeout(timeoutId);
-          done();
-        }
-      };
-
-      if (typeof window.adBreak === 'function') {
-        invokeAdBreak();
-        return;
-      }
-
-      const waitUntil = Date.now() + 2500;
-      const poll = window.setInterval(() => {
-        if (typeof window.adBreak === 'function') {
-          window.clearInterval(poll);
-          invokeAdBreak();
-          return;
-        }
-
-        if (Date.now() >= waitUntil) {
-          window.clearInterval(poll);
-          resolve(true);
-        }
-      }, 100);
-    });
   };
 
   const runGeneration = async () => {
@@ -233,22 +139,7 @@ const AppContent: React.FC = () => {
   };
 
   const generate = async () => {
-    if (!keyword.trim() || status === 'generating' || isAdPlaying) return;
-    setError(null);
-
-    if (!adsenseClientId || !isAdSdkReady) {
-      setStatus('error');
-      setError('광고를 불러오지 못해 생성이 차단되었습니다. ADSENSE_CLIENT_ID 및 AdSense 노출 상태를 확인해 주세요.');
-      return;
-    }
-
-    const adShown = await showInterstitialAd();
-    if (!adShown) {
-      setStatus('error');
-      setError('광고가 표시되지 않아 생성을 중단했습니다. 광고가 표시된 뒤 다시 시도해 주세요.');
-      return;
-    }
-
+    if (!keyword.trim() || status === 'generating') return;
     await runGeneration();
   };
 
@@ -346,26 +237,16 @@ const AppContent: React.FC = () => {
           <div className="mt-4 pb-10">
             <button 
               onClick={generate}
-              disabled={status === 'generating' || isAdPlaying || !keyword.trim()}
+              disabled={status === 'generating' || !keyword.trim()}
               className="generate-btn w-full py-5 rounded-full font-black text-lg flex items-center justify-center gap-4 disabled:opacity-20 shadow-xl"
             >
-              {status === 'generating' || isAdPlaying ? (
+              {status === 'generating' ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
               ) : (
                 <span className="material-symbols-rounded">auto_fix_high</span>
               )}
-              <span>
-                {isAdPlaying
-                  ? 'SHOWING AD...'
-                  : status === 'generating'
-                    ? 'GENERATING...'
-                    : 'GENERATE ARTIFACT'}
-              </span>
+              <span>{status === 'generating' ? 'GENERATING...' : 'GENERATE ARTIFACT'}</span>
             </button>
-              {/* ⭐️ 여기에 광고 배너를 넣으세요! */}
-              <div className="mt-6"> 
-                <AdBanner adClientId={adsenseClientId} />
-              </div>
           </div>
         </aside>
 
@@ -399,6 +280,12 @@ const AppContent: React.FC = () => {
               <p className="text-2xl font-black uppercase tracking-[0.2em]">Ready to Create</p>
             </div>
           )}
+
+          {results.length > 0 ? (
+            <div className="mb-10">
+              <AdBanner adClientId={adsenseClientId} />
+            </div>
+          ) : null}
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10">
             {results.map((res, i) => (

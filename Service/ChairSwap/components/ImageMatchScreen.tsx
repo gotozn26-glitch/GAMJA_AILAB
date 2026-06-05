@@ -268,8 +268,6 @@ export function ImageMatchScreen() {
               )}
             </button>
 
-            <AdBanner />
-
             {errorStatus ? (
               <div className="animate-fade-in-up rounded-xl border border-red-200 bg-red-50 p-4 text-center">
                 <p className="mb-2 text-sm font-bold text-red-700">

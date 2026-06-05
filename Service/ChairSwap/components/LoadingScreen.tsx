@@ -1,5 +1,4 @@
 import { useNavigate } from 'react-router-dom';
-import { AdBanner } from './AdBanner';
 
 const BASE_ROUTE = '/service/chair-swap';
 
@@ -57,8 +56,6 @@ export function LoadingScreen() {
               </div>
             </div>
           </div>
-
-          <AdBanner type="loading" className="w-full" />
 
           <button
             onClick={() => navigate(BASE_ROUTE)}

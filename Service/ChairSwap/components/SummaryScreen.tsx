@@ -167,7 +167,6 @@ export function SummaryScreen() {
             </button>
           </div>
 
-          <AdBanner className="mt-4" />
         </div>
 
         <div className="flex min-h-[400px] flex-col rounded-2xl border border-border-light bg-white p-6">
