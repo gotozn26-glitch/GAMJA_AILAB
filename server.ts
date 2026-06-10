@@ -988,6 +988,23 @@ async function startServer() {
 
   // [2순위] 정적 파일 설정 (배포용)
   const distPath = path.resolve(process.cwd(), "dist");
+  const publicAdsTxtPath = path.resolve(process.cwd(), "public", "ads.txt");
+  const distAdsTxtPath = path.join(distPath, "ads.txt");
+
+  app.get("/ads.txt", (_req, res) => {
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.setHeader("Cache-Control", "public, max-age=3600");
+    res.sendFile(publicAdsTxtPath, (err) => {
+      if (err) {
+        res.sendFile(distAdsTxtPath, (fallbackErr) => {
+          if (fallbackErr) {
+            res.status(404).type("text/plain").send("Not found");
+          }
+        });
+      }
+    });
+  });
+
   app.use(express.static(distPath));
 
   // [3순위] SPA 폴백 — 실제 정적 파일(또는 /assets/*) 요청에는 index.html을 주지 않습니다.
