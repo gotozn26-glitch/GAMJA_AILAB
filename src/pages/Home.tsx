@@ -50,6 +50,7 @@ type PopupPreviewLayer =
 type PopupKey =
   | 'rotation'
   | 'object-creator'
+  | 'upscaler'
   | 'logo-maker'
   | 'chair-swap'
   | 'bongjoonho'
@@ -124,6 +125,23 @@ const popupConfigs: Record<PopupKey, PopupConfig> = {
     buttonBackground: '011-2.svg',
     buttonIcon: '007-2.png',
     buttonIconStyle: abs(32, 15, 29, 40),
+  },
+  upscaler: {
+    key: 'upscaler',
+    title: 'Upscaler',
+    route: '/service/upscaler',
+    mask: '013-Mask-group.svg',
+    preview: '016-9.png',
+    previewStyle: abs(255, 160, 183, 210),
+    titleLeft: 640,
+    description: `저화질 이미지를 더 선명하고 깔끔하게 보정할 수 있는 업스케일러입니다.
+이미지의 분위기와 디테일은 유지하면서 해상도와 완성도를 높여줍니다.
+흐릿한 선, 뭉개진 질감, 깨진 화질을 자연스럽게 개선할 수 있습니다.
+복잡한 편집 과정 없이 이미지를 업로드하면 빠르게 결과물을 확인할 수 있습니다.
+디자인 소스, 콘텐츠용 이미지 등 다각도로 활용하기 좋은 도구입니다.`,
+    buttonBackground: '014-2.svg',
+    buttonIcon: '015-8.png',
+    buttonIconStyle: abs(32, 16, 28, 38),
   },
   'logo-maker': {
     key: 'logo-maker',
@@ -1206,6 +1224,14 @@ export default function Home() {
                 width={454}
                 height={304}
                 onClick={() => setOpenPopup('object-creator')}
+              />
+              <NavOverlay
+                label="Upscaler"
+                left={1227}
+                top={1049}
+                width={454}
+                height={304}
+                onClick={() => setOpenPopup('upscaler')}
               />
               <NavOverlay
                 label="로고작업실"

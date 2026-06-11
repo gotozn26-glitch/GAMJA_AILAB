@@ -59,7 +59,10 @@ const LogoCard: React.FC<LogoCardProps> = ({ variation, onRegenerate, onSelect, 
             </p>
           )}
           <button 
-            onClick={() => onRegenerate(variation.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onRegenerate(variation.id);
+            }}
             className="mt-2 flex items-center gap-2 bg-gray-50 hover:bg-gray-100 text-gray-900 px-4 py-2 rounded-xl text-[10px] font-bold transition-all active:scale-95"
           >
             <span className="material-symbols-outlined text-sm">refresh</span> 다시 시도
@@ -72,17 +75,26 @@ const LogoCard: React.FC<LogoCardProps> = ({ variation, onRegenerate, onSelect, 
             alt={`Logo Variation ${variation.id}`}
             className={`w-full h-full object-contain ${viewMode === 'grid' ? 'p-10' : 'p-6'} transition-all duration-700 ${variation.loading ? 'opacity-0 scale-95' : 'opacity-100 scale-100 group-hover:scale-105'}`} 
           />
-          <div className="absolute inset-0 bg-black/90 opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col items-center justify-center gap-4 backdrop-blur-md z-30">
-            <button 
-              onClick={downloadImage}
-              className="bg-white text-black px-8 py-3 rounded-full font-bold text-xs flex items-center gap-2 shadow-2xl hover:scale-105 active:scale-95 transition-all"
-            >
-              <span className="material-symbols-outlined text-base">download</span> DOWNLOAD PNG
-            </button>
-            <button 
-              onClick={() => onRegenerate(variation.id)}
-              className="text-white/60 hover:text-white font-bold text-[10px] tracking-widest flex items-center gap-1 transition-colors"
-            >
+          <div
+            className="absolute inset-0 bg-black/90 opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col items-center justify-center gap-4 backdrop-blur-md z-30"
+            onClick={(e) => e.stopPropagation()}
+          >
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              downloadImage();
+            }}
+            className="bg-white text-black px-8 py-3 rounded-full font-bold text-xs flex items-center gap-2 shadow-2xl hover:scale-105 active:scale-95 transition-all"
+          >
+            <span className="material-symbols-outlined text-base">download</span> DOWNLOAD PNG
+          </button>
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              onRegenerate(variation.id);
+            }}
+            className="text-white/60 hover:text-white font-bold text-[10px] tracking-widest flex items-center gap-1 transition-colors"
+          >
               <span className="material-symbols-outlined text-sm">refresh</span> REGENERATE
             </button>
           </div>

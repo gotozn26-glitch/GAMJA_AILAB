@@ -326,7 +326,7 @@ const Sidebar: React.FC<SidebarProps> = ({ config, setConfig }) => {
 
   return (
     <>
-      <aside className="w-80 border-r border-gray-100 flex flex-col h-full bg-white flex-shrink-0 z-20">
+      <aside className="z-20 flex h-full min-h-0 w-80 shrink-0 flex-col border-r border-gray-100 bg-white">
         <div className="p-10 pb-6">
           <h1 className="text-xl font-bold tracking-tighter text-gray-900">로고작업실</h1>
         </div>

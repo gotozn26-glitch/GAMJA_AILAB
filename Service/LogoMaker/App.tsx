@@ -3,9 +3,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { LogoVariation, DesignConfig } from './types';
 import Sidebar from './components/Sidebar';
 import LogoCard from './components/LogoCard';
-import { generateLogoConcept, editLogoWithMask, prepareLogoGenerationContext, type LogoGenerationContext } from './services/openaiService';
+import { generateLogoConcept, editLogoWithMask, editLogoGlobal } from './services/openaiService';
 
 const App: React.FC = () => {
+  const [logoText, setLogoText] = useState('');
   const [prompt, setPrompt] = useState('');
   const [promptImage, setPromptImage] = useState<string | null>(null); // 구도 참고용 이미지
   const [isGenerating, setIsGenerating] = useState(false);
@@ -18,10 +19,13 @@ const App: React.FC = () => {
   const [lassoStrokes, setLassoStrokes] = useState<Array<Array<{ x: number; y: number }>>>([]);
   const [redoLassoStrokes, setRedoLassoStrokes] = useState<Array<Array<{ x: number; y: number }>>>([]);
   const [lassoBrushSize, setLassoBrushSize] = useState(0.03);
+  const [imageNaturalSize, setImageNaturalSize] = useState({ width: 1, height: 1 });
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const logoTextRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const selectionContainerRef = useRef<HTMLDivElement>(null);
+  const selectionImageRef = useRef<HTMLDivElement>(null);
   const isLassoDrawingRef = useRef(false);
   
   const activeRequests = useRef<Set<string>>(new Set());
@@ -51,6 +55,42 @@ const App: React.FC = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  useEffect(() => {
+    const selected = variations.find(v => v.id === editorVariationId && !!v.imageUrl);
+    if (!selected?.imageUrl) return;
+    const image = new Image();
+    image.src = selected.imageUrl;
+    image.onload = () => {
+      setImageNaturalSize({
+        width: image.naturalWidth || 1,
+        height: image.naturalHeight || 1,
+      });
+    };
+  }, [variations, editorVariationId]);
+
+  const detectPromptScript = (text: string): 'korean' | 'english' | 'mixed' => {
+    const koreanCount = (text.match(/[\uAC00-\uD7A3\u3131-\u318E]/g) || []).length;
+    const latinCount = (text.match(/[a-zA-Z]/g) || []).length;
+    if (koreanCount === 0 && latinCount === 0) return 'mixed';
+    if (koreanCount > latinCount * 1.2) return 'korean';
+    if (latinCount > koreanCount * 1.2) return 'english';
+    return 'mixed';
+  };
+
+  const getImageRenderBounds = () => {
+    if (!selectionImageRef.current || !selectionContainerRef.current) return null;
+    const imageRect = selectionImageRef.current.getBoundingClientRect();
+    const containerRect = selectionContainerRef.current.getBoundingClientRect();
+
+    return {
+      rect: imageRect,
+      width: imageRect.width,
+      height: imageRect.height,
+      offsetX: imageRect.left - containerRect.left,
+      offsetY: imageRect.top - containerRect.top,
+    };
+  };
 
   const processPromptFile = (file: File) => {
     if (file && file.type.startsWith('image/')) {
@@ -100,7 +140,7 @@ const App: React.FC = () => {
     if (!targetId && isGenerating) return;
 
     const hasRef = config.referenceImages.some(img => img !== '');
-    if (!prompt.trim() && !hasRef && !promptImage) return;
+    if (!logoText.trim() && !prompt.trim() && !hasRef && !promptImage) return;
 
     setIsGenerating(true);
     setHasGeneratedOnce(true);
@@ -125,7 +165,7 @@ const App: React.FC = () => {
     };
     const randomColorDirectives = buildDistinctColorDirectives();
 
-    const generateSingle = async (id: string, index: number, shared?: LogoGenerationContext) => {
+    const generateSingle = async (id: string, index: number) => {
       if (activeRequests.current.has(id)) return;
       activeRequests.current.add(id);
 
@@ -145,9 +185,26 @@ const App: React.FC = () => {
       // If not, use standard variation prompt.
       let variationHint = "";
       if (styleRef) {
-        variationHint = `Match the style of Reference Image #${index + 1} EXACTLY. `;
+        const refSlot = config.referenceImages[index] ? `#${index + 1}` : '(fallback)';
+        variationHint = `Match the uploaded STYLE REFERENCE image ${refSlot} closely for color mood, stroke finish, decoration density, and texture. Replicate its visual style while keeping logo lettering readable. `;
       } else {
         variationHint = `Generate a clearly different random variation #${index + 1}. Decide composition, decoration, and color direction autonomously.`;
+      }
+
+      const promptScript = detectPromptScript(logoText.trim() || prompt);
+      if (logoText.trim()) {
+        variationHint += ` Render ONLY this exact logo text: "${logoText.trim()}". Do NOT render style instructions as visible lettering.`;
+      }
+      if (promptScript === 'english') {
+        variationHint += ' Keep logo lettering in English exactly as specified in logo text.';
+      } else if (promptScript === 'korean') {
+        variationHint += ' Keep logo lettering in Korean exactly as specified in logo text.';
+      }
+
+      if (config.colorMode === 'manual') {
+        variationHint += ` Use mandatory manual palette: point/accent ${config.colors.main}, base/secondary ${config.colors.sub}. Do not use other primary colors.`;
+      } else {
+        variationHint += ` ${targetId ? buildDistinctColorDirectives()[0] : randomColorDirectives[index]}`;
       }
 
       if (promptImage) {
@@ -156,24 +213,23 @@ const App: React.FC = () => {
       if (config.fontSketchImage) {
         variationHint += " [FONT-SIMILARITY PRIORITY MODE: ALWAYS ON] Font sketch is mandatory: preserve its letter skeleton, wobble angle, bold weight, and playful wild character as highest priority. Style reference must not override letterform.";
       }
-      variationHint += ` ${targetId ? buildDistinctColorDirectives()[0] : randomColorDirectives[index]}`;
       variationHint += " Quality target: polished spacing, clean edge finishing, and premium logo-grade balance.";
       variationHint += " Readability first: do not distort core syllable shapes, and keep decorative points away from critical letter counters/strokes.";
-      if (prompt.includes('돈')) {
+      if (logoText.includes('돈')) {
         variationHint += " The Korean syllable '돈' must remain instantly readable as '돈'.";
       }
 
       try {
         const imageUrl = await generateLogoConcept(
-          prompt, 
+          logoText,
+          prompt,
           config, 
           variationHint, 
           styleRef, 
           promptImage,
-          config.fontSketchImage || null,
-          shared
+          config.fontSketchImage || null
         );
-        setVariations(prev => prev.map(v => v.id === id ? { ...v, imageUrl, prompt, loading: false, error: '' } : v));
+        setVariations(prev => prev.map(v => v.id === id ? { ...v, imageUrl, prompt: `${logoText} | ${prompt}`.trim(), loading: false, error: '' } : v));
       } catch (err) {
         console.error(`Error in ${id}:`, err);
         const asAny = err as any;
@@ -196,16 +252,7 @@ const App: React.FC = () => {
     } else {
       // Generate All (cost-friendly: 2 results only)
       const ids = ['01', '02'];
-      const styleRefForPlan =
-        config.referenceImages.find((img) => img !== '') || null;
-      const shared = await prepareLogoGenerationContext(
-        prompt,
-        config,
-        promptImage,
-        config.fontSketchImage || null,
-        styleRefForPlan
-      );
-      await Promise.all(ids.map((id, index) => generateSingle(id, index, shared)));
+      await Promise.all(ids.map((id, index) => generateSingle(id, index)));
       setIsGenerating(false);
     }
   };
@@ -214,13 +261,19 @@ const App: React.FC = () => {
   const selectedVariation = variations.find(v => v.id === editorVariationId && !!v.imageUrl);
 
   const getNormalizedPoint = (clientX: number, clientY: number) => {
-    if (!selectionContainerRef.current) return null;
-    const rect = selectionContainerRef.current.getBoundingClientRect();
-    const x = (clientX - rect.left) / rect.width;
-    const y = (clientY - rect.top) / rect.height;
+    const bounds = getImageRenderBounds();
+    if (!bounds) return null;
+
+    const localX = clientX - bounds.rect.left;
+    const localY = clientY - bounds.rect.top;
+
+    if (localX < 0 || localY < 0 || localX > bounds.width || localY > bounds.height) {
+      return null;
+    }
+
     return {
-      x: Math.max(0, Math.min(1, x)),
-      y: Math.max(0, Math.min(1, y)),
+      x: Math.max(0, Math.min(1, localX / bounds.width)),
+      y: Math.max(0, Math.min(1, localY / bounds.height)),
     };
   };
 
@@ -249,20 +302,24 @@ const App: React.FC = () => {
     isLassoDrawingRef.current = false;
   };
 
-  const handleModalUndo = () => {
+  const handleModalUndo = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     setLassoStrokes((prev) => {
       if (prev.length === 0) return prev;
       const removed = prev[prev.length - 1];
-      setRedoLassoStrokes((r) => [...r, removed]);
+      setRedoLassoStrokes((redo) => [...redo, removed]);
       return prev.slice(0, -1);
     });
   };
 
-  const handleModalRedo = () => {
+  const handleModalRedo = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     setRedoLassoStrokes((prev) => {
       if (prev.length === 0) return prev;
       const restored = prev[prev.length - 1];
-      setLassoStrokes((s) => [...s, restored]);
+      setLassoStrokes((strokes) => [...strokes, restored]);
       return prev.slice(0, -1);
     });
   };
@@ -307,11 +364,16 @@ const App: React.FC = () => {
 
     try {
       setIsEditingRegion(true);
-      let editedImageUrl = '';
       const hasStroke = lassoStrokes.some(s => s.length > 1);
-      if (!hasStroke) return;
-      const maskDataUrl = await buildMaskFromLasso(selectedVariation.imageUrl);
-      editedImageUrl = await editLogoWithMask(selectedVariation.imageUrl, maskDataUrl, editPrompt);
+      let editedImageUrl = '';
+
+      if (hasStroke) {
+        const maskDataUrl = await buildMaskFromLasso(selectedVariation.imageUrl);
+        editedImageUrl = await editLogoWithMask(selectedVariation.imageUrl, maskDataUrl, editPrompt);
+      } else {
+        editedImageUrl = await editLogoGlobal(selectedVariation.imageUrl, editPrompt);
+      }
+
       setVariations(prev =>
         prev.map(v => (v.id === selectedVariation.id ? { ...v, imageUrl: editedImageUrl, error: '', prompt: `${v.prompt}\n[Edit] ${editPrompt}` } : v))
       );
@@ -327,12 +389,12 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white">
+    <div className="flex h-full min-h-0 w-full overflow-hidden bg-white">
       <Sidebar config={config} setConfig={setConfig} />
       
-      <main className="flex-1 flex flex-col relative bg-[#fcfcfc]">
-        <div className="flex-1 overflow-y-auto p-12 pb-64 custom-scrollbar">
-          <div className="w-full mx-auto h-full">
+      <main className="flex min-h-0 flex-1 flex-col relative bg-[#fcfcfc]">
+        <div className="min-h-0 flex-1 overflow-y-auto p-12 pb-64 custom-scrollbar">
+          <div className="mx-auto flex min-h-[320px] w-full flex-col">
             {showGrid ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {variations.map((v) => (
@@ -352,15 +414,15 @@ const App: React.FC = () => {
                 ))}
               </div>
             ) : (
-              <div className="h-full flex flex-col items-center justify-center text-center space-y-8 animate-fade-in">
+              <div className="flex flex-1 flex-col items-center justify-center text-center space-y-8">
                 <div className="w-20 h-20 rounded-[2.5rem] bg-white shadow-2xl shadow-black/5 flex items-center justify-center border border-gray-100">
                   <span className="material-symbols-outlined text-3xl text-gray-300">sync_saved_locally</span>
                 </div>
                 <div className="space-y-2">
-                  <h3 className="text-xl font-bold text-gray-900 tracking-tighter">레퍼런스를 등록하고 프롬프트를 작성해주세요</h3>
+                  <h3 className="text-xl font-bold text-gray-900 tracking-tighter">레퍼런스를 등록하고 로고 문구를 입력해주세요</h3>
                   <p className="text-sm text-gray-400 font-medium">
-                    <span className="font-bold text-gray-900">TIP:</span> 사이드바의 레퍼런스(1~4)가 각각의 결과물 스타일이 됩니다.<br/>
-                    입력창에 <span className="text-gray-900 underline decoration-gray-300 decoration-2">스케치 이미지</span>를 드래그하거나 첨부하세요.
+                    <span className="font-bold text-gray-900">TIP:</span> 하단에서 <span className="text-gray-900 underline decoration-gray-300 decoration-2">로고 문구</span>와 <span className="text-gray-900 underline decoration-gray-300 decoration-2">스타일 프롬프트</span>를 분리해서 입력하세요.<br/>
+                    사이드바 레퍼런스(1~4)가 각 결과물 스타일이 됩니다.
                   </p>
                 </div>
               </div>
@@ -391,13 +453,34 @@ const App: React.FC = () => {
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            className={`bg-white/95 backdrop-blur-3xl rounded-[2.5rem] shadow-[0_40px_80px_-20px_rgba(0,0,0,0.12)] border p-3 flex items-center gap-2 ring-1 ring-black/5 transition-all duration-300 ${
+            className={`bg-white/95 backdrop-blur-3xl rounded-[2.5rem] shadow-[0_40px_80px_-20px_rgba(0,0,0,0.12)] border p-3 flex flex-col gap-2 ring-1 ring-black/5 transition-all duration-300 ${
               isDragOver ? 'border-black bg-blue-50/50 scale-[1.02] shadow-xl' : 'border-gray-100'
             }`}
           >
-            <div className="pl-5 flex items-center gap-3">
+            <div className="flex items-center gap-3 px-4 py-1">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 shrink-0 w-16">로고 문구</span>
+              <input
+                ref={logoTextRef}
+                type="text"
+                value={logoText}
+                onChange={(e) => setLogoText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    textareaRef.current?.focus();
+                  }
+                }}
+                className="flex-1 bg-transparent border-none focus:ring-0 text-base font-bold placeholder-gray-300 text-gray-900 py-2"
+                placeholder="예: 로고작업실"
+              />
+            </div>
+
+            <div className="h-px bg-gray-100 mx-3" />
+
+            <div className="flex items-center gap-2">
+            <div className="pl-5 flex items-center gap-3 shrink-0">
               <span className={`material-symbols-outlined text-xl ${isGenerating ? 'animate-spin text-gray-300' : 'text-gray-400'}`}>
-                {isGenerating ? 'progress_activity' : 'edit_note'}
+                {isGenerating ? 'progress_activity' : 'palette'}
               </span>
               
               {/* Image Upload Button */}
@@ -431,14 +514,14 @@ const App: React.FC = () => {
                 }
               }}
               className={`flex-1 bg-transparent border-none focus:ring-0 text-base font-semibold placeholder-gray-300 text-gray-900 py-4 resize-none max-h-32 custom-scrollbar transition-opacity ${isDragOver ? 'opacity-50' : 'opacity-100'}`}
-              placeholder={isDragOver ? "이미지를 여기에 놓으세요" : "예: 1번 스타일로 그려줘 (이미지 드래그 시 구도로 반영)"}
+              placeholder={isDragOver ? "이미지를 여기에 놓으세요" : "스타일 프롬프트: 예) 두꺼운 필기체 느낌, 단색, 이어지게"}
             />
 
             <button 
               onClick={() => handleGenerate()}
-              disabled={isGenerating || (!prompt.trim() && !config.referenceImages.some(i => i !== '') && !promptImage)}
+              disabled={isGenerating || (!logoText.trim() && !prompt.trim() && !config.referenceImages.some(i => i !== '') && !promptImage)}
               className={`group flex items-center justify-center gap-2 min-w-[140px] md:min-w-[170px] px-8 py-4 rounded-[2rem] font-bold tracking-tighter transition-all active:scale-95 shrink-0 shadow-lg ${
-                isGenerating || (!prompt.trim() && !config.referenceImages.some(i => i !== '') && !promptImage)
+                isGenerating || (!logoText.trim() && !prompt.trim() && !config.referenceImages.some(i => i !== '') && !promptImage)
                 ? 'bg-gray-100 text-gray-300 shadow-none'
                 : 'bg-black text-white hover:bg-gray-800 shadow-black/10'
               }`}
@@ -447,6 +530,7 @@ const App: React.FC = () => {
               {!isGenerating && <span className="material-symbols-outlined text-xl group-hover:translate-x-1 transition-transform">auto_awesome</span>}
               {isGenerating && <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>}
             </button>
+            </div>
           </div>
         </div>
       </main>
@@ -457,7 +541,7 @@ const App: React.FC = () => {
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <div>
                 <h4 className="text-sm font-bold text-gray-900">세부 결과 조절</h4>
-                <p className="text-[11px] text-gray-400">REF STYLE {selectedVariation.id} - 영역 선택 후 자연어로 수정</p>
+                <p className="text-[11px] text-gray-400">REF STYLE {selectedVariation.id} - 영역 선택(선택) 후 자연어로 수정</p>
               </div>
               <button
                 onClick={() => setEditorVariationId(null)}
@@ -474,31 +558,37 @@ const App: React.FC = () => {
                   onMouseMove={handleSelectionMove}
                   onMouseUp={handleSelectionEnd}
                   onMouseLeave={handleSelectionEnd}
-                  className="relative w-full aspect-square rounded-2xl border border-dashed border-gray-200 cursor-crosshair overflow-hidden bg-gray-50"
+                  className="relative w-full aspect-square rounded-2xl border border-dashed border-gray-200 cursor-crosshair overflow-hidden bg-gray-50 flex items-center justify-center"
                 >
-                  <img
-                    key={`${selectedVariation.id}-${selectedVariation.imageUrl}`}
-                    src={selectedVariation.imageUrl}
-                    alt="Selected variation to edit"
-                    className="w-full h-full object-contain pointer-events-none select-none"
-                    draggable={false}
-                  />
-                  <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full pointer-events-none">
-                    {lassoStrokes.map((stroke, idx) => (
-                      <polyline
-                        key={idx}
-                        fill="none"
-                        stroke="rgba(239, 68, 68, 0.8)"
-                        strokeWidth={Math.max(3, lassoBrushSize * 120)}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        points={stroke.map(p => `${p.x * 100},${p.y * 100}`).join(' ')}
-                        vectorEffect="non-scaling-stroke"
-                      />
-                    ))}
-                  </svg>
+                  <div
+                    ref={selectionImageRef}
+                    className="relative max-w-full max-h-full"
+                    style={{ aspectRatio: `${imageNaturalSize.width} / ${imageNaturalSize.height}`, width: imageNaturalSize.width >= imageNaturalSize.height ? '100%' : 'auto', height: imageNaturalSize.height > imageNaturalSize.width ? '100%' : 'auto' }}
+                  >
+                    <img
+                      key={`${selectedVariation.id}-${selectedVariation.imageUrl}`}
+                      src={selectedVariation.imageUrl}
+                      alt="Selected variation to edit"
+                      className="w-full h-full object-contain pointer-events-none select-none block"
+                      draggable={false}
+                    />
+                    <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full pointer-events-none">
+                      {lassoStrokes.map((stroke, idx) => (
+                        <polyline
+                          key={idx}
+                          fill="none"
+                          stroke="rgba(239, 68, 68, 0.8)"
+                          strokeWidth={Math.max(3, lassoBrushSize * 120)}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          points={stroke.map(p => `${p.x * 100},${p.y * 100}`).join(' ')}
+                          vectorEffect="non-scaling-stroke"
+                        />
+                      ))}
+                    </svg>
+                  </div>
                 </div>
-                <p className="text-[10px] text-gray-400 mt-2">모달 내부에서만 영역 선택이 활성화됩니다.</p>
+                <p className="text-[10px] text-gray-400 mt-2">영역을 선택하지 않으면 전체 로고에 수정이 적용됩니다.</p>
               </div>
 
               <div className="space-y-3">
@@ -553,17 +643,18 @@ const App: React.FC = () => {
 
                 <div className="flex gap-2">
                   <button
+                    type="button"
                     onClick={applyRegionEdit}
                     disabled={
                       isEditingRegion ||
-                      !editPrompt.trim() ||
-                      !lassoStrokes.some(s => s.length > 1)
+                      !editPrompt.trim()
                     }
                     className="flex-1 bg-black text-white rounded-xl py-2.5 text-xs font-bold disabled:bg-gray-200 disabled:text-gray-400"
                   >
-                    {isEditingRegion ? '부분 수정 중...' : '선택 영역 수정'}
+                    {isEditingRegion ? '수정 중...' : lassoStrokes.some(s => s.length > 1) ? '선택 영역 수정' : '전체 수정'}
                   </button>
                   <button
+                    type="button"
                     onClick={() => {
                       setLassoStrokes([]);
                       setRedoLassoStrokes([]);

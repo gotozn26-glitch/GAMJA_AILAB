@@ -8,6 +8,7 @@ const CreatorObjectPage = lazy(() => import('./pages/CreatorObjectPage'));
 const MultiViewPage = lazy(() => import('./pages/MultiViewPage'));
 const StoryboardDirectorPage = lazy(() => import('./pages/StoryboardDirectorPage'));
 const LogoMakerPage = lazy(() => import('./pages/LogoMakerPage'));
+const UpscalerPage = lazy(() => import('./pages/UpscalerPage'));
 
 function RouteFallback() {
   return (
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="/service/storyboard-director" element={<StoryboardDirectorPage />} />
           <Route path="/service/creator-object" element={<CreatorObjectPage />} />
           <Route path="/service/logo-maker" element={<LogoMakerPage />} />
+          <Route path="/service/upscaler" element={<UpscalerPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>

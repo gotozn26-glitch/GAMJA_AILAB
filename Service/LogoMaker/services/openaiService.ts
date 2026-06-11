@@ -18,6 +18,58 @@ type FontSketchProfile = {
   notes: string;
 };
 
+type StyleRefProfile = {
+  colorPalette: string;
+  strokeStyle: string;
+  decorationLevel: "minimal" | "moderate" | "rich";
+  mood: string;
+  texture: string;
+  notes: string;
+};
+
+type LogoScript = "korean" | "english" | "mixed";
+
+const detectLogoScript = (text: string): LogoScript => {
+  const koreanCount = (text.match(/[\uAC00-\uD7A3\u3131-\u318E]/g) || []).length;
+  const latinCount = (text.match(/[a-zA-Z]/g) || []).length;
+  if (koreanCount === 0 && latinCount === 0) return "mixed";
+  if (koreanCount > latinCount * 1.2) return "korean";
+  if (latinCount > koreanCount * 1.2) return "english";
+  return "mixed";
+};
+
+const buildScriptInstruction = (script: LogoScript, logoText: string) => {
+  if (!logoText.trim()) {
+    return "No explicit logo text provided. Infer brand name only from references if needed, but never render style instructions as logo text.";
+  }
+  if (script === "english") {
+    return `Render ONLY this exact English logo text on the logo: "${logoText.trim()}". Do NOT add any other words from style instructions. Do NOT translate into Korean.`;
+  }
+  if (script === "korean") {
+    return `Render ONLY this exact Korean logo text on the logo: "${logoText.trim()}". Do NOT add any other words from style instructions. Do NOT translate into English.`;
+  }
+  return `Render ONLY this exact logo text on the logo: "${logoText.trim()}". Preserve original script. Do NOT render style instructions as visible text.`;
+};
+
+const buildLogoTextBlock = (logoText: string, stylePrompt: string) => {
+  const trimmedLogo = logoText.trim();
+  const trimmedStyle = stylePrompt.trim();
+  return `[LOGO TEXT — RENDER EXACTLY ON LOGO]
+${trimmedLogo || "(none — infer only from references if absolutely necessary)"}
+
+[STYLE INSTRUCTIONS — NEVER RENDER AS VISIBLE TEXT]
+${trimmedStyle || "(none)"}
+
+CRITICAL: Only the LOGO TEXT section may appear as lettering on the logo. Style instructions describe look/feel only and must NOT be written on the logo.`;
+};
+
+const buildManualColorInstruction = (config: DesignConfig) =>
+  `[MANDATORY MANUAL COLOR PALETTE]
+- Point/Accent color (main highlights, key strokes): ${config.colors.main}
+- Base/Secondary color (fills, supporting elements): ${config.colors.sub}
+- These hex colors are REQUIRED. Do not substitute other primary colors.
+- Build the logo primarily from these two colors with tasteful tints/shades only.`;
+
 const STYLE_BANK_GUIDE = `
 [STYLE BANK - QUALITY REFERENCES]
 Use these as internal style families and pick the best fit from user intent:
@@ -59,16 +111,12 @@ const getClient = () => {
 
 const plannerModelCandidates = [
   import.meta.env.VITE_OPENAI_PLANNER_MODEL,
+  "gpt-4.1-mini",
   "gpt-4o-mini",
 ].filter(Boolean) as string[];
 
-/** 로고 생성·편집에 사용하는 이미지 모델 (고정) */
-const primaryImageModel = "gpt-image-2";
-
-export type LogoGenerationContext = {
-  strategy: LogoStrategy;
-  fontSketchProfile: FontSketchProfile | null;
-};
+// 기본은 gpt-image-2(덕테이프) 고정. 필요시 env로만 덮어쓰기.
+const primaryImageModel = import.meta.env.VITE_OPENAI_IMAGE_MODEL || "gpt-image-2";
 
 const formatOpenAiError = (err: any) => {
   const parts = [
@@ -82,19 +130,22 @@ const formatOpenAiError = (err: any) => {
 };
 
 const buildStrategyPrompt = (
-  userPrompt: string,
+  logoText: string,
+  stylePrompt: string,
   config: DesignConfig,
   variationHint: string,
   hasStyleRef: boolean,
   hasCompositionRef: boolean,
   hasFontSketch: boolean,
-  fontSketchProfile: FontSketchProfile | null
+  fontSketchProfile: FontSketchProfile | null,
+  styleRefProfile: StyleRefProfile | null,
+  logoScript: LogoScript
 ) => {
   const strictFontSimilarityMode = hasFontSketch;
   const colorInstruction =
     config.colorMode === "auto"
       ? "Decide color palette autonomously from user intent and references."
-      : `Use manual palette. Accent: ${config.colors.main}, Base: ${config.colors.sub}.`;
+      : buildManualColorInstruction(config);
 
   return `
 You are a senior Korean lettering logo creative director.
@@ -103,8 +154,7 @@ The user wants AI-led end-to-end creative decisions.
 
 ${STYLE_BANK_GUIDE}
 
-[USER PROMPT]
-${userPrompt || "(empty prompt, infer intent from reference images)"}
+${buildLogoTextBlock(logoText, stylePrompt)}
 
 [VARIATION HINT]
 ${variationHint || "(none)"}
@@ -117,12 +167,26 @@ ${variationHint || "(none)"}
 - style ref provided: ${hasStyleRef ? "yes" : "no"}
 - composition ref provided: ${hasCompositionRef ? "yes" : "no"}
 
+[LETTERING SCRIPT]
+${buildScriptInstruction(logoScript, logoText)}
+
 [REFERENCE PRIORITY]
 - If FONT SKETCH exists, it has absolute top priority for letterform morphology (stroke flow, proportion, angle, curvature, terminal shape, playful character).
-- STYLE reference affects rendering mood/color/detail, but must NEVER override FONT SKETCH letterform structure.
+- STYLE reference (second priority after font sketch) must strongly influence color mood, stroke finish, decoration density, and visual texture.
+- When STYLE reference is provided, colorPlan and visualStyle must explicitly follow the uploaded style reference image.
 - Composition reference only guides overall placement.
 - Reject generations that drift away from FONT SKETCH skeleton when font sketch is provided.
 - FONT similarity priority mode: ${strictFontSimilarityMode ? "ON (STRICT)" : "OFF"}
+
+[STYLE PROFILE EXTRACTED FROM REFERENCE]
+${styleRefProfile ? `
+- color palette: ${styleRefProfile.colorPalette}
+- stroke style: ${styleRefProfile.strokeStyle}
+- decoration level: ${styleRefProfile.decorationLevel}
+- mood: ${styleRefProfile.mood}
+- texture: ${styleRefProfile.texture}
+- notes: ${styleRefProfile.notes}
+` : "- no profile (no style reference)"}
 
 [FONT PROFILE EXTRACTED FROM SKETCH]
 ${fontSketchProfile ? `
@@ -163,14 +227,49 @@ const logoStrategySchema = {
   ],
 };
 
+const styleRefProfileSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    colorPalette: { type: "string" },
+    strokeStyle: { type: "string" },
+    decorationLevel: { type: "string", enum: ["minimal", "moderate", "rich"] },
+    mood: { type: "string" },
+    texture: { type: "string" },
+    notes: { type: "string" },
+  },
+  required: ["colorPalette", "strokeStyle", "decorationLevel", "mood", "texture", "notes"],
+};
+
+const fontSketchProfileSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    cornerStyle: { type: "string", enum: ["angular", "rounded", "mixed"] },
+    strokeWeight: { type: "string", enum: ["light", "medium", "bold", "ultra-bold"] },
+    regularity: { type: "string", enum: ["structured", "organic", "irregular"] },
+    tilt: { type: "string", enum: ["upright", "slanted", "mixed"] },
+    energy: { type: "string", enum: ["calm", "playful", "aggressive"] },
+    notes: { type: "string" },
+  },
+  required: ["cornerStyle", "strokeWeight", "regularity", "tilt", "energy", "notes"],
+};
+
 const buildFinalImagePrompt = (
   strategy: LogoStrategy,
-  userPrompt: string,
+  logoText: string,
+  stylePrompt: string,
   variationHint: string,
+  config: DesignConfig,
   hasFontSketch: boolean,
-  fontSketchProfile: FontSketchProfile | null
+  hasStyleRef: boolean,
+  fontSketchProfile: FontSketchProfile | null,
+  styleRefProfile: StyleRefProfile | null,
+  logoScript: LogoScript
 ) => `
 Create a high-quality logo on pure white background.
+
+${buildLogoTextBlock(logoText, stylePrompt)}
 
 [Creative Direction Decided by Planner]
 - Core concept: ${strategy.coreConcept}
@@ -179,15 +278,21 @@ Create a high-quality logo on pure white background.
 - Color plan: ${strategy.colorPlan}
 - Constraints: ${strategy.constraints.join("; ")}
 
-[Original User Prompt]
-${userPrompt || "(empty)"}
-
 [Variation]
 ${variationHint || "(none)"}
 
+[Lettering Script - Mandatory]
+${buildScriptInstruction(logoScript, logoText)}
+
 [Critical Legibility Requirement]
-- Keep every Korean syllable readable exactly as intended text.
+- Keep every character readable exactly as intended text.
 - If text includes "돈", it must be unmistakably readable as "돈" (not "톤", "론", etc.).
+
+${config.colorMode === "manual" ? buildManualColorInstruction(config) : ""}
+
+[Style Reference Guidance]
+${hasStyleRef ? "- Match the uploaded STYLE REFERENCE image closely for color mood, stroke finish, decoration density, and texture." : "- No dedicated style reference; choose style autonomously."}
+${styleRefProfile ? `- Apply extracted style profile strictly: ${JSON.stringify(styleRefProfile)}` : ""}
 
 [Typography Guidance]
 - ${hasFontSketch ? "Use uploaded FONT SKETCH as letterform morphology reference only." : "No dedicated font sketch provided."}
@@ -204,7 +309,8 @@ ${variationHint || "(none)"}
 - Crisp edges, vector-like feel.
 - Do not include watermarks or mockup elements.
 - Preserve the intended naming text exactly. Do not translate, paraphrase, replace, or invent brand words.
-- If the prompt includes Korean naming text, keep Korean text exactly as the primary lettering.
+- Never convert English logo text into Korean, and never convert Korean logo text into English.
+- Never write style instructions (e.g. "필기체", "단색", "두꺼운") as visible logo lettering.
 - Make this variation meaningfully different from other random attempts.
 - Keep output at high design quality bar (spacing, hierarchy, contrast, finish).
 - Include at least one subtle motif tied to the main keyword from user intent (for finance: coin, graph, arrow, currency cue, etc.).
@@ -288,15 +394,177 @@ const createPlannerStrategy = async (
   throw new Error(`Planner failed: ${formatOpenAiError(lastError)}`);
 };
 
-const buildPlannerInput = (
-  userPrompt: string,
+const analyzeStyleRefProfile = async (
+  client: OpenAI,
+  styleRefImage: string | null
+): Promise<StyleRefProfile | null> => {
+  if (!styleRefImage) return null;
+  try {
+    const response = await client.responses.create({
+      model: "gpt-4.1-mini",
+      input: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text:
+                "Analyze this logo style reference image. Extract color palette, stroke style, decoration density, mood, and texture for logo generation. Return strict JSON.",
+            },
+            {
+              type: "input_image",
+              image_url: styleRefImage,
+            },
+          ],
+        },
+      ],
+      text: {
+        format: {
+          type: "json_schema",
+          name: "style_ref_profile",
+          schema: styleRefProfileSchema,
+        },
+      },
+    });
+    return JSON.parse(response.output_text) as StyleRefProfile;
+  } catch {
+    return null;
+  }
+};
+
+const analyzeFontSketchProfile = async (
+  client: OpenAI,
+  fontSketchImage: string | null
+): Promise<FontSketchProfile | null> => {
+  if (!fontSketchImage) return null;
+  try {
+    const response = await client.responses.create({
+      model: "gpt-4.1-mini",
+      input: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text:
+                "Analyze this font sketch and extract lettering morphology profile for logo generation. Focus on corner shape, stroke weight, regularity, tilt, and visual energy. Return strict JSON.",
+            },
+            {
+              type: "input_image",
+              image_url: fontSketchImage,
+            },
+          ],
+        },
+      ],
+      text: {
+        format: {
+          type: "json_schema",
+          name: "font_sketch_profile",
+          schema: fontSketchProfileSchema,
+        },
+      },
+    });
+    return JSON.parse(response.output_text) as FontSketchProfile;
+  } catch {
+    return null;
+  }
+};
+
+const createImageWithFallback = async (
+  client: OpenAI,
+  imageInput: any[],
+  size: string
+): Promise<string> => {
+  const promptText = imageInput?.[1]?.content
+    ?.filter((item: any) => item.type === "input_text")
+    ?.map((item: any) => item.text)
+    ?.join("\n\n");
+  const hasReferenceImages = imageInput?.[1]?.content?.some(
+    (item: any) => item.type === "input_image"
+  );
+  const model = primaryImageModel;
+
+  // Reference images must go through responses API so the model can actually see them.
+  if (hasReferenceImages) {
+    try {
+      const withRefs = await client.responses.create({
+        model,
+        input: imageInput,
+        tools: [{ type: "image_generation" }],
+      } as any);
+
+      const withRefsImage = extractGeneratedImage(withRefs);
+      if (withRefsImage) return await normalizeImageResult(withRefsImage);
+      throw new Error(`No image returned from model '${model}' with references.`);
+    } catch (err) {
+      // Fallback: style/font profiles are already embedded in the text prompt.
+      if (model.startsWith("gpt-image")) {
+        try {
+          const imageResponse = await client.images.generate({
+            model,
+            prompt: `${promptText}\n\nOutput size: ${size}.`,
+            size: size === "1024x1024" ? "1024x1024" : "1536x1024",
+          } as any);
+
+          const imageData = extractImageFromImagesApi(imageResponse);
+          if (imageData) return await normalizeImageResult(imageData);
+        } catch {
+          // throw original reference error below
+        }
+      }
+      throw new Error(`Image generation with references failed (model='${model}'): ${formatOpenAiError(err)}`);
+    }
+  }
+
+  // gpt-image 계열: images.generate (text-only)
+  if (model.startsWith("gpt-image")) {
+    try {
+      const imageResponse = await client.images.generate({
+        model,
+        prompt: promptText,
+        size: size === "1024x1024" ? "1024x1024" : "1536x1024",
+      } as any);
+
+      const imageData = extractImageFromImagesApi(imageResponse);
+      if (imageData) return await normalizeImageResult(imageData);
+      throw new Error(`No image returned from model '${model}'.`);
+    } catch (err) {
+      throw new Error(`Image generation failed (model='${model}'): ${formatOpenAiError(err)}`);
+    }
+  }
+
+  // env에서 responses + image_generation 모델을 지정한 경우만 사용
+  try {
+    const withSize = await client.responses.create({
+      model,
+      input: imageInput,
+      tools: [{ type: "image_generation" }],
+    } as any);
+
+    const withSizeImage = extractGeneratedImage(withSize);
+    if (withSizeImage) return await normalizeImageResult(withSizeImage);
+    throw new Error(`No image returned from model '${model}'.`);
+  } catch (err) {
+    throw new Error(`Image generation failed (model='${model}'): ${formatOpenAiError(err)}`);
+  }
+};
+
+export const generateLogoConcept = async (
+  logoText: string,
+  stylePrompt: string,
   config: DesignConfig,
   variationHint: string,
   styleRefImage: string | null,
   compositionRefImage: string | null,
-  fontSketchImage: string | null,
-  fontSketchProfile: FontSketchProfile | null
-) => {
+  fontSketchImage: string | null
+): Promise<string> => {
+  const client = getClient();
+  const logoScript = detectLogoScript(logoText.trim() || stylePrompt);
+  const [fontSketchProfile, styleRefProfile] = await Promise.all([
+    analyzeFontSketchProfile(client, fontSketchImage),
+    analyzeStyleRefProfile(client, styleRefImage),
+  ]);
+
   const plannerInput: any[] = [
     {
       role: "system",
@@ -309,13 +577,16 @@ const buildPlannerInput = (
         {
           type: "input_text",
           text: buildStrategyPrompt(
-            userPrompt,
+            logoText,
+            stylePrompt,
             config,
             variationHint,
             Boolean(styleRefImage),
             Boolean(compositionRefImage),
             Boolean(fontSketchImage),
-            fontSketchProfile
+            fontSketchProfile,
+            styleRefProfile,
+            logoScript
           ),
         },
       ],
@@ -343,103 +614,7 @@ const buildPlannerInput = (
     });
   }
 
-  return plannerInput;
-};
-
-/** 배치 생성 시 1회만 호출 — 플래너를 공유해 변형 수만큼 반복하지 않음 */
-export const prepareLogoGenerationContext = async (
-  userPrompt: string,
-  config: DesignConfig,
-  compositionRefImage: string | null,
-  fontSketchImage: string | null,
-  styleRefImage: string | null
-): Promise<LogoGenerationContext> => {
-  const client = getClient();
-  const strategy = await createPlannerStrategy(
-    client,
-    buildPlannerInput(
-      userPrompt,
-      config,
-      "Plan one strong logo direction; per-variation color and decoration differences come later.",
-      styleRefImage,
-      compositionRefImage,
-      fontSketchImage,
-      null
-    )
-  );
-  return { strategy, fontSketchProfile: null };
-};
-
-const createImageWithFallback = async (
-  client: OpenAI,
-  imageInput: any[],
-  size: string
-): Promise<string> => {
-  const promptText = imageInput?.[1]?.content
-    ?.filter((item: any) => item.type === "input_text")
-    ?.map((item: any) => item.text)
-    ?.join("\n\n");
-  const model = primaryImageModel;
-
-  // gpt-image 계열: images.generate
-  if (model.startsWith("gpt-image")) {
-    try {
-      const imageResponse = await client.images.generate({
-        model,
-        prompt: promptText,
-        size: size === "1024x1024" ? "1024x1024" : "1536x1024",
-      } as any);
-
-      const imageData = extractImageFromImagesApi(imageResponse);
-      if (imageData) return await normalizeImageResult(imageData);
-      throw new Error(`No image returned from model '${model}'.`);
-    } catch (err) {
-      throw new Error(`Image generation failed (model='${model}'): ${formatOpenAiError(err)}`);
-    }
-  }
-
-  // env에서 responses + image_generation 모델을 지정한 경우만 사용
-  try {
-    const withSize = await client.responses.create({
-      model,
-      input: imageInput,
-      tools: [{ type: "image_generation" }],
-      size,
-    } as any);
-
-    const withSizeImage = extractGeneratedImage(withSize);
-    if (withSizeImage) return await normalizeImageResult(withSizeImage);
-    throw new Error(`No image returned from model '${model}'.`);
-  } catch (err) {
-    throw new Error(`Image generation failed (model='${model}'): ${formatOpenAiError(err)}`);
-  }
-};
-
-export const generateLogoConcept = async (
-  userPrompt: string,
-  config: DesignConfig,
-  variationHint: string,
-  styleRefImage: string | null,
-  compositionRefImage: string | null,
-  fontSketchImage: string | null,
-  sharedContext?: LogoGenerationContext
-): Promise<string> => {
-  const client = getClient();
-
-  const strategy =
-    sharedContext?.strategy ??
-    (await createPlannerStrategy(
-      client,
-      buildPlannerInput(
-        userPrompt,
-        config,
-        variationHint,
-        styleRefImage,
-        compositionRefImage,
-        fontSketchImage,
-        null
-      )
-    ));
+  const strategy = await createPlannerStrategy(client, plannerInput);
 
   const imageInput: any[] = [
     {
@@ -454,10 +629,15 @@ export const generateLogoConcept = async (
           type: "input_text",
           text: buildFinalImagePrompt(
             strategy,
-            userPrompt,
+            logoText,
+            stylePrompt,
             variationHint,
+            config,
             Boolean(fontSketchImage),
-            null
+            Boolean(styleRefImage),
+            fontSketchProfile,
+            styleRefProfile,
+            logoScript
           ),
         },
       ],
@@ -553,10 +733,10 @@ export const editLogoRegion = async (
 
   try {
     const result = await client.images.edit({
-      model: primaryImageModel,
+      model: primaryImageModel.startsWith("gpt-image") ? primaryImageModel : "gpt-image-2",
       image: imageFile,
       mask: maskFile,
-      prompt: `${editPrompt}\n\nKeep all unmasked areas unchanged and preserve original style consistency.`,
+      prompt: `${editPrompt}\n\nEdit ONLY the transparent masked region. Keep all opaque/unmasked areas pixel-identical. Do not burn selection strokes or overlay marks into the result.`,
       size: image.width === image.height ? "1024x1024" : "1536x1024",
     } as any);
 
@@ -568,6 +748,54 @@ export const editLogoRegion = async (
     return await normalizeImageResult(imageData);
   } catch (err) {
     throw new Error(`Region edit failed: ${formatOpenAiError(err)}`);
+  }
+};
+
+export const editLogoGlobal = async (
+  imageDataUrl: string,
+  editPrompt: string
+): Promise<string> => {
+  if (!editPrompt.trim()) {
+    throw new Error("Edit prompt is required.");
+  }
+
+  const client = getClient();
+  const model = primaryImageModel.startsWith("gpt-image") ? primaryImageModel : "gpt-image-2";
+
+  try {
+    const response = await client.responses.create({
+      model,
+      input: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: `Edit this logo image based on the instruction below.
+Apply the change across the whole logo while preserving overall style, layout, and lettering readability.
+Do not add selection marks, brush strokes, or overlay artifacts.
+
+[Edit Instruction]
+${editPrompt.trim()}`,
+            },
+            {
+              type: "input_image",
+              image_url: imageDataUrl,
+            },
+          ],
+        },
+      ],
+      tools: [{ type: "image_generation" }],
+    } as any);
+
+    const imageData = extractGeneratedImage(response);
+    if (!imageData) {
+      throw new Error("No edited image returned.");
+    }
+
+    return await normalizeImageResult(imageData);
+  } catch (err) {
+    throw new Error(`Global edit failed: ${formatOpenAiError(err)}`);
   }
 };
 
@@ -593,10 +821,10 @@ export const editLogoWithMask = async (
 
   try {
     const result = await client.images.edit({
-      model: primaryImageModel,
+      model: primaryImageModel.startsWith("gpt-image") ? primaryImageModel : "gpt-image-2",
       image: imageFile,
       mask: maskFile,
-      prompt: `${editPrompt}\n\nKeep all unmasked areas unchanged and preserve original style consistency.`,
+      prompt: `${editPrompt}\n\nEdit ONLY the transparent masked region. Keep all opaque/unmasked areas pixel-identical. Do not burn selection strokes or overlay marks into the result.`,
       size: image.width === image.height ? "1024x1024" : "1536x1024",
     } as any);
 

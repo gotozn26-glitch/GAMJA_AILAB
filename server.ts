@@ -248,6 +248,14 @@ function getYoungGeminiApiKey(): string {
   return sanitizeEnvValue(process.env.YOUNG_GEMINI_API_KEY || "");
 }
 
+function getChaeGeminiApiKey(): string {
+  return sanitizeEnvValue(process.env.CHAE_GEMINI_API_KEY || "");
+}
+
+function getChaeGptApiKey(): string {
+  return sanitizeEnvValue(process.env.CHAE_GPT_API_KEY || "");
+}
+
 const CHAIR_SWAP_STYLE_GUIDES: Record<string, string> = {
   Toss: `당신은 '토스(Toss)'의 UX 라이터입니다. 사용자가 직관적으로 이해할 수 있는 카피를 작성해야 합니다.
 [토스 라이팅 원칙]
@@ -983,6 +991,111 @@ async function startServer() {
         return res.status(401).json({ error: "YOUNG_GEMINI_API_KEY가 유효하지 않습니다." });
       }
       return res.status(500).json({ error: message || "이미지 매칭에 실패했습니다." });
+    }
+  });
+
+  app.post("/api/upscaler/gemini", async (req, res) => {
+    try {
+      const { base64, imageSize, prompt, model } = req.body ?? {};
+      const apiKey = getChaeGeminiApiKey();
+      if (!apiKey) {
+        return res.status(500).json({ error: "CHAE_GEMINI_API_KEY가 설정되어 있지 않습니다." });
+      }
+      if (!base64 || !prompt) {
+        return res.status(400).json({ error: "이미지 데이터가 필요합니다." });
+      }
+
+      const ai = new GoogleGenAI({ apiKey });
+      const response = await ai.models.generateContent({
+        model: model || "gemini-3.1-flash-image-preview",
+        contents: {
+          parts: [
+            { inlineData: { data: base64, mimeType: "image/png" } },
+            { text: prompt },
+          ],
+        },
+        config: {
+          temperature: 0.05,
+          topP: 0.2,
+          imageConfig: { imageSize: (imageSize || "2K") as "1K" | "2K" | "4K" },
+        },
+      });
+
+      const parts = response.candidates?.[0]?.content?.parts;
+      if (!parts) {
+        return res.status(500).json({ error: "Gemini가 이미지를 반환하지 않았습니다." });
+      }
+
+      for (const part of parts) {
+        if (part.inlineData?.data) {
+          const mime = part.inlineData.mimeType || "image/png";
+          return res.json({ dataUrl: `data:${mime};base64,${part.inlineData.data}` });
+        }
+      }
+
+      return res.status(500).json({ error: "Gemini가 이미지를 반환하지 않았습니다." });
+    } catch (error: any) {
+      console.error("Upscaler gemini error:", error);
+      const message = String(error?.message || "");
+      if (message.includes("429") || message.includes("RESOURCE_EXHAUSTED")) {
+        return res.status(429).json({ error: "크레딧이 부족해요 ㅠㅠ 내일 다시 시도해주세요." });
+      }
+      return res.status(500).json({ error: message || "Gemini 업스케일에 실패했습니다." });
+    }
+  });
+
+  app.post("/api/upscaler/openai", async (req, res) => {
+    const started = Date.now();
+    try {
+      const { base64, outputSize, prompt, quality, model } = req.body ?? {};
+      const apiKey = getChaeGptApiKey();
+      if (!apiKey) {
+        return res.status(500).json({ error: "CHAE_GPT_API_KEY가 설정되어 있지 않습니다." });
+      }
+      if (!base64 || !prompt) {
+        return res.status(400).json({ error: "이미지 데이터가 필요합니다." });
+      }
+
+      const buffer = Buffer.from(base64, "base64");
+      const blob = new Blob([buffer], { type: "image/png" });
+      const form = new FormData();
+      form.append("model", model || "gpt-image-2");
+      form.append("prompt", prompt);
+      form.append("quality", quality || "high");
+      form.append("output_format", "png");
+      form.append("background", "opaque");
+      form.append("size", outputSize || "1024x1024");
+      form.append("image", blob, "input.png");
+
+      const response = await fetch("https://api.openai.com/v1/images/edits", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: form,
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const errText = typeof data?.error?.message === "string" ? data.error.message : JSON.stringify(data);
+        if (response.status === 429) {
+          return res.status(429).json({ error: "크레딧이 부족해요 ㅠㅠ 내일 다시 시도해주세요." });
+        }
+        return res.status(response.status).json({ error: errText || "OpenAI 업스케일에 실패했습니다." });
+      }
+
+      const b64 = data?.data?.[0]?.b64_json;
+      if (!b64) {
+        return res.status(500).json({ error: "OpenAI가 이미지를 반환하지 않았습니다." });
+      }
+
+      return res.json({
+        dataUrl: `data:image/png;base64,${b64}`,
+        durationMs: Date.now() - started,
+      });
+    } catch (error: any) {
+      console.error("Upscaler openai error:", error);
+      return res.status(500).json({ error: String(error?.message || "OpenAI 업스케일에 실패했습니다.") });
     }
   });
 

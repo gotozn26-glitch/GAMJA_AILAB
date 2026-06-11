@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+.hero-wild-font {
+  font-family: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+  letter-spacing: -0.02em;
+}
+
+/* Loading cat — single sprite div, frame cycle via JS */
+.pixel-cat-root {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pixel-cat-sprite {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}

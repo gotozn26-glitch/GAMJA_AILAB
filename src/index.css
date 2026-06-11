@@ -23,6 +23,7 @@
 @source "../Service/MultiView/**/*.{ts,tsx}";
 @source "../Service/StoryboardDirector/**/*.{ts,tsx}";
 @source "../Service/LogoMaker/**/*.{ts,tsx}";
+@source "../Service/Upscaler/**/*.{ts,tsx}";
 
 html,
 body {
@@ -178,6 +179,13 @@ body {
 }
 
 /* LogoMaker (Service/LogoMaker) — 단독 index.html의 인라인 스타일 대체 */
+.gamja-logomaker {
+  color-scheme: light;
+  background: #ffffff;
+  color: #111827;
+  font-family: "Pretendard", ui-sans-serif, system-ui, sans-serif;
+}
+
 .gamja-logomaker .custom-scrollbar::-webkit-scrollbar {
   width: 4px;
 }
@@ -218,7 +226,15 @@ body {
   }
 }
 .gamja-logomaker .animate-fade-in {
+  opacity: 1;
   animation: gamja-logomaker-fade-in 0.35s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gamja-logomaker .animate-fade-in {
+    animation: none;
+    transform: none;
+  }
 }
 
 .gamja-bong {

@@ -4,7 +4,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
-  /** Service/LogoMaker 등에서 CHAE_GPT_API_KEY를 import.meta.env로 사용 */
+  /** LogoMaker: CHAE_GPT_API_KEY (클라이언트). Upscaler: CHAE_* 키는 서버(server.ts)에서 사용 */
   envPrefix: ['VITE_', 'CHAE_'],
   plugins: [tailwindcss(), react()],
   // 배포 환경에서 경로가 꼬이지 않도록 '/'로 고정합니다.
