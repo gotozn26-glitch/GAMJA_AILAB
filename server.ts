@@ -218,18 +218,11 @@ function refreshToolSupporterPosts(): Promise<ToolSupporterPost[]> {
 }
 
 async function getLabcordPosts(): Promise<LabcordPost[]> {
-  if (labcordPostsCache) {
-    return labcordPostsCache;
-  }
-
+  // 메인 페이지(새 창/탭)마다 Notion에서 최신 목록을 가져옵니다.
   return refreshLabcordPosts();
 }
 
 async function getToolSupporterPosts(): Promise<ToolSupporterPost[]> {
-  if (toolSupporterPostsCache) {
-    return toolSupporterPostsCache;
-  }
-
   return refreshToolSupporterPosts();
 }
 
