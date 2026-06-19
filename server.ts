@@ -328,6 +328,22 @@ async function startServer() {
     }
   });
 
+  app.get("/runtime-config.js", (_req, res) => {
+    const adsenseClientId = sanitizeEnvValue(
+      process.env.ADSENSE_CLIENT_ID || "ca-pub-9680572306636399",
+    );
+    const adsenseHomeSlotId = sanitizeEnvValue(
+      process.env.ADSENSE_HOME_SLOT_ID || "9414681583",
+    );
+    const payload = {
+      ADSENSE_CLIENT_ID: adsenseClientId,
+      ADSENSE_HOME_SLOT_ID: adsenseHomeSlotId,
+    };
+    res.setHeader("Content-Type", "application/javascript; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    res.send(`window.__APP_CONFIG__ = ${JSON.stringify(payload)};`);
+  });
+
   app.get("/api/labcord/posts", async (_req, res) => {
     try {
       const posts = await getLabcordPosts();

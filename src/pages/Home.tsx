@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useRef, useState, type CSSProperties } from 'react';
+import AdSenseUnit from '../components/AdSenseUnit';
 
 const ASSET_BASE = '/page1/image';
 const POPUP_ASSET_BASE = '/page-pop/image';
@@ -605,6 +606,8 @@ export default function Home() {
   const [labcordStatus, setLabcordStatus] = useState<AsyncStatus>('loading');
   const [toolSupporterPosts, setToolSupporterPosts] = useState<ToolSupporterPost[]>([]);
   const [toolSupporterStatus, setToolSupporterStatus] = useState<AsyncStatus>('loading');
+  const [adsenseClientId, setAdsenseClientId] = useState('');
+  const [adsenseHomeSlotId, setAdsenseHomeSlotId] = useState('');
   const [aiLabBlur, setAiLabBlur] = useState(0);
 
   useEffect(() => {
@@ -646,6 +649,11 @@ export default function Home() {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [openPopup]);
+
+  useEffect(() => {
+    setAdsenseClientId(window.__APP_CONFIG__?.ADSENSE_CLIENT_ID?.trim() || '');
+    setAdsenseHomeSlotId(window.__APP_CONFIG__?.ADSENSE_HOME_SLOT_ID?.trim() || '');
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1153,6 +1161,30 @@ export default function Home() {
                   }}
                 >
                   LABcord 글을 불러오는 중입니다...
+                </div>
+              ) : null}
+
+              {labcordStatus === 'ready' &&
+              labcordPosts.length > 0 &&
+              adsenseClientId &&
+              adsenseHomeSlotId ? (
+                <div
+                  style={{
+                    ...abs(243, 3065, 1398, 90),
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                  className="z-10 overflow-hidden"
+                  aria-label="광고"
+                >
+                  <AdSenseUnit
+                    clientId={adsenseClientId}
+                    slotId={adsenseHomeSlotId}
+                    style={{ display: 'inline-block', width: '728px', height: '90px' }}
+                    format="horizontal"
+                    fullWidthResponsive={false}
+                  />
                 </div>
               ) : null}
 
