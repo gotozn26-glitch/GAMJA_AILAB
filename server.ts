@@ -1,4 +1,4 @@
-import express from "express";
+import express, { type Response } from "express";
 import path from "path";
 import { GoogleGenAI, Type } from "@google/genai";
 import { NotionAPI } from "notion-client";
@@ -247,6 +247,34 @@ function getChaeGeminiApiKey(): string {
 
 function getChaeGptApiKey(): string {
   return sanitizeEnvValue(process.env.CHAE_GPT_API_KEY || "");
+}
+
+/** Cloud CDN cache hit을 위해 정적 자산별 Cache-Control을 설정합니다. */
+function applyStaticCacheHeaders(res: Response, filePath: string) {
+  const normalized = filePath.replace(/\\/g, "/");
+
+  // Vite 빌드 산출물 (파일명 해시) — 장기 캐시
+  if (normalized.includes("/assets/")) {
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    return;
+  }
+
+  // SPA 셸 — 항상 최신 index.html 확인
+  if (/\/index\.html$/i.test(normalized)) {
+    res.setHeader("Cache-Control", "no-cache");
+    return;
+  }
+
+  // 이미지·폰트·미디어
+  if (/\.(png|jpe?g|gif|webp|avif|svg|ico|woff2?|ttf|otf|webm|mp4|mov)$/i.test(normalized)) {
+    res.setHeader("Cache-Control", "public, max-age=604800");
+    return;
+  }
+
+  // 기타 정적 CSS/JS (public 루트 등)
+  if (/\.(css|js)$/i.test(normalized)) {
+    res.setHeader("Cache-Control", "public, max-age=86400");
+  }
 }
 
 const CHAIR_SWAP_STYLE_GUIDES: Record<string, string> = {
@@ -1127,7 +1155,13 @@ async function startServer() {
     });
   });
 
-  app.use(express.static(distPath));
+  app.use(
+    express.static(distPath, {
+      setHeaders(res, filePath) {
+        applyStaticCacheHeaders(res, filePath);
+      },
+    }),
+  );
 
   // [3순위] SPA 폴백 — 실제 정적 파일(또는 /assets/*) 요청에는 index.html을 주지 않습니다.
   // 그렇지 않으면 누락된 JS가 HTML로 내려가 브라우저가 조용히 흰 화면만 냅니다.
@@ -1136,6 +1170,7 @@ async function startServer() {
     if (p.startsWith("/assets/") || /\.[a-zA-Z0-9]+$/.test(p)) {
       return res.status(404).type("text/plain").send("Not found");
     }
+    res.setHeader("Cache-Control", "no-cache");
     res.sendFile(path.join(distPath, "index.html"), (err) => {
       if (err) {
         res.status(404).send("Build files not found.");
