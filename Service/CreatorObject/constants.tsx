@@ -1,5 +1,6 @@
 
 import { StyleConfig } from './types';
+import modernStylePreview from './image/modern.png';
 
 export const STYLES: StyleConfig[] = [
   {
@@ -24,11 +25,11 @@ export const STYLES: StyleConfig[] = [
     isActive: true
   },
   {
-    id: 'flat-color',
-    name: '업데이트 예정',
-    image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"%3E%3Crect width="100" height="100" fill="%23f0f0f0"/%3E%3Ctext x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="24" fill="%23ccc"%3E...%3C/text%3E%3C/svg%3E',
-    promptSuffix: '',
-    isActive: false
+    id: 'modern-3d',
+    name: '모던 3D',
+    image: modernStylePreview,
+    promptSuffix: 'a high-quality 3D isometric icon render, modern UI style with soft-touch matte plastic material, extreme chamfered edges and rounded silhouettes, vibrant and playful colors, clean studio lighting with soft ambient occlusion, isolated on a solid pure white background, minimal and simplified geometry.',
+    isActive: true
   },
   {
     id: 'simple-line',

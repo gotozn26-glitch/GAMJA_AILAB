@@ -140,10 +140,28 @@ const AppContent: React.FC = () => {
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              className={`whisk-card aspect-[16/3.5] flex flex-col items-center justify-center gap-3 cursor-pointer overflow-hidden transition-colors ${referenceImage || isDragging ? 'active bg-white' : ''} ${isDragging ? 'border-[#FFD600] border-solid' : ''}`}
+              className={`whisk-card aspect-[16/3.5] flex flex-col items-center justify-center gap-3 cursor-pointer overflow-hidden transition-colors relative group ${referenceImage || isDragging ? 'active bg-white' : ''} ${isDragging ? 'border-[#FFD600] border-solid' : ''}`}
             >
               {referenceImage ? (
-                <img src={referenceImage} className="w-full h-full object-cover-contain" alt="Reference" />
+                <>
+                  <img src={referenceImage} className="w-full h-full object-cover-contain animate-in fade-in zoom-in-95 duration-200" alt="Reference" />
+                  <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setReferenceImage(null);
+                        if (fileInputRef.current) {
+                          fileInputRef.current.value = '';
+                        }
+                      }}
+                      className="w-8 h-8 rounded-full bg-red-500 hover:bg-red-600 border border-black text-white flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-lg"
+                      title="레퍼런스 이미지 삭제"
+                    >
+                      <span className="material-symbols-rounded text-lg">close</span>
+                    </button>
+                  </div>
+                </>
               ) : (
                 <div className="flex flex-row items-center gap-3">
                   <span className={`material-symbols-rounded text-2xl transition-opacity ${isDragging ? 'opacity-100 text-[#FFD600]' : 'opacity-20'}`}>
