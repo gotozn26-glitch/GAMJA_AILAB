@@ -76,9 +76,30 @@ const roundTo16 = (n: number) => Math.max(16, Math.round(n / 16) * 16);
 /** gpt-image-2 rejects sizes below this longer side (API minimum pixel budget). */
 export const OPENAI_MIN_GENERATION_LONGER_SIDE = 1024;
 
+/** gpt-image-2 rejects aspect ratios beyond 3:1 (longer ÷ shorter). */
+export const OPENAI_MAX_ASPECT_RATIO = 3;
+
 export const parseSizeLabel = (label: string) => {
   const [w, h] = label.split('x').map(Number);
   return { w: w || 512, h: h || 512 };
+};
+
+export const openAiAspectRatio = (w: number, h: number) =>
+  Math.max(w, h) / Math.max(1, Math.min(w, h));
+
+export const exceedsOpenAiAspectRatio = (w: number, h: number) =>
+  openAiAspectRatio(w, h) > OPENAI_MAX_ASPECT_RATIO + 1e-6;
+
+/** Pad the shorter side (via white letterbox at prepare time) so ratio ≤ 3:1. */
+export const enforceOpenAiAspectRatio = (w: number, h: number): { w: number; h: number } => {
+  const rw = roundTo16(w);
+  const rh = roundTo16(h);
+  if (!exceedsOpenAiAspectRatio(rw, rh)) return { w: rw, h: rh };
+
+  const longer = Math.max(rw, rh);
+  const minShorter = roundTo16(Math.ceil(longer / OPENAI_MAX_ASPECT_RATIO));
+  if (rw >= rh) return { w: longer, h: minShorter };
+  return { w: minShorter, h: longer };
 };
 
 export const resolveOpenAiGenerationSize = (
@@ -90,7 +111,8 @@ export const resolveOpenAiGenerationSize = (
   const genLonger = Math.max(OPENAI_MIN_GENERATION_LONGER_SIDE, generationLongerSide);
   const w = aspect >= 1 ? genLonger : Math.max(16, Math.round(genLonger * aspect));
   const h = aspect >= 1 ? Math.max(16, Math.round(genLonger / aspect)) : genLonger;
-  return `${roundTo16(w)}x${roundTo16(h)}`;
+  const { w: safeW, h: safeH } = enforceOpenAiAspectRatio(w, h);
+  return `${safeW}x${safeH}`;
 };
 
 /** @deprecated Use resolveOpenAiGenerationSize — kept for callers passing deliverable only. */
@@ -106,21 +128,24 @@ export const prepareApiInput = async (
   const srcW = img.naturalWidth || img.width;
   const srcH = img.naturalHeight || img.height;
   const { w: outW, h: outH } = parseSizeLabel(outputSizeLabel);
-  const scale = Math.min(outW / Math.max(1, srcW), outH / Math.max(1, srcH), 8);
-  const prepW = roundTo16(Math.min(outW, Math.max(srcW, Math.round(srcW * scale))));
-  const prepH = roundTo16(Math.min(outH, Math.max(srcH, Math.round(srcH * scale))));
 
   const canvas = document.createElement('canvas');
-  canvas.width = prepW;
-  canvas.height = prepH;
+  canvas.width = outW;
+  canvas.height = outH;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas unavailable');
   ctx.fillStyle = '#FFFFFF';
-  ctx.fillRect(0, 0, prepW, prepH);
-  drawScaled(ctx, img, srcW, srcH, 0, 0, prepW, prepH, 'bicubic');
+  ctx.fillRect(0, 0, outW, outH);
+
+  const fit = Math.min(outW / Math.max(1, srcW), outH / Math.max(1, srcH), 8);
+  const drawW = Math.max(1, Math.round(srcW * fit));
+  const drawH = Math.max(1, Math.round(srcH * fit));
+  const x = Math.round((outW - drawW) / 2);
+  const y = Math.round((outH - drawH) / 2);
+  drawScaled(ctx, img, srcW, srcH, x, y, drawW, drawH, 'bicubic');
 
   const dataUrl = canvas.toDataURL('image/png');
-  return { base64: dataUrl.split(',')[1] || '', dataUrl, preparedW: prepW, preparedH: prepH };
+  return { base64: dataUrl.split(',')[1] || '', dataUrl, preparedW: outW, preparedH: outH };
 };
 
 export const resizeToTarget = async (

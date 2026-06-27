@@ -1,4 +1,4 @@
-export const BUILD_ID = 'UPSCALE_V32_STYLE_AWARE';
+export const BUILD_ID = 'UPSCALE_V34_OPENAI_ASPECT';
 
 export const EXPECTED_DEV_URL = 'http://127.0.0.1:3000';
 

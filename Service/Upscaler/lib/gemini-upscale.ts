@@ -17,9 +17,10 @@ export async function upscaleWithGemini(params: {
   targetW: number;
   targetH: number;
   sourceStyle?: SourceVisualStyle;
+  userGuidance?: string;
 }): Promise<GeminiUpscaleResult> {
-  const { base64, mimeType, generationLongerSide, targetW, targetH, sourceStyle } = params;
-  const prompt = buildGeminiUpscalePrompt(sourceStyle ?? 'flat_2d');
+  const { base64, mimeType, generationLongerSide, targetW, targetH, sourceStyle, userGuidance } = params;
+  const prompt = buildGeminiUpscalePrompt(sourceStyle ?? 'flat_2d', userGuidance);
   const { label: imageSize, pixelLongerSide } = resolveGeminiImageSizeForTarget(generationLongerSide);
   const prepLonger = Math.min(generationLongerSide, pixelLongerSide);
   const prepSize = resolveOpenAiGenerationSize(targetW, targetH, prepLonger);

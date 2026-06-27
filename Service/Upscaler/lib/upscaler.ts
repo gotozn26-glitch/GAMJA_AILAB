@@ -13,6 +13,7 @@ export type UpscaleJobOptions = {
   requestId?: string;
   upscaleMode?: UpscaleMode;
   abortSignal?: AbortSignal;
+  userGuidance?: string;
 };
 
 export type UpscaleResult = {
@@ -34,10 +35,11 @@ export async function upscaleImageByProvider(
   sourceHeight: number,
   _originalMaxDim: number,
   _preserveText: boolean,
-  _additionalPrompt?: string,
+  additionalPrompt?: string,
   jobOptions?: UpscaleJobOptions
 ): Promise<UpscaleResult> {
   const requestId = jobOptions?.requestId ?? crypto.randomUUID();
+  const userGuidance = jobOptions?.userGuidance ?? additionalPrompt;
   const targetW = jobOptions?.targetW ?? Math.round(sourceWidth * scale);
   const targetH = jobOptions?.targetH ?? Math.round(sourceHeight * scale);
   const generationLongerSide =
@@ -70,6 +72,7 @@ export async function upscaleImageByProvider(
       generationLongerSide,
       requestId,
       sourceStyle: styleAnalysis.style,
+      userGuidance,
       abortSignal: jobOptions?.abortSignal,
     });
     rawDataUrl = openAi.dataUrl;
@@ -82,6 +85,7 @@ export async function upscaleImageByProvider(
       targetW,
       targetH,
       sourceStyle: styleAnalysis.style,
+      userGuidance,
     });
     rawDataUrl = gemini.dataUrl;
   }

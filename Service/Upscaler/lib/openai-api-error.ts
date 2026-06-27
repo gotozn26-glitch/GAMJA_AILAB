@@ -140,6 +140,18 @@ const userCopyFor = (
           userHint: '페이지를 새로고침(Cmd+Shift+R)한 뒤 다시 업스케일해 주세요.',
         };
       }
+      if (
+        apiMessage.toLowerCase().includes('aspect ratio') ||
+        apiMessage.toLowerCase().includes('3:1')
+      ) {
+        return {
+          userTitle: 'OpenAI 종횡비 제한',
+          userMessage:
+            'OpenAI는 가로·세로 비율이 3:1을 넘는 이미지를 처리할 수 없습니다. (세로가 매우 긴 배너·스크린샷 등)',
+          userHint:
+            'Gemini를 사용하거나, 페이지를 새로고침한 뒤 다시 시도해 주세요. (앱이 자동으로 여백을 추가해 맞춥니다)',
+        };
+      }
       return {
         userTitle: 'OpenAI 요청 값 오류',
         userMessage: apiMessage || 'OpenAI API 파라미터가 올바르지 않습니다.',

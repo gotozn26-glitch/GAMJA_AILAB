@@ -24,6 +24,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { parseUpscaleRunError, type UpscaleRunErrorInfo } from './lib/upscale-run-error';
 import { clearOpenAiBillingBlocked, isOpenAiBillingBlocked } from './lib/openai-api-error';
 import { BUILD_ID } from './build-info';
+import { MAX_USER_GUIDANCE_CHARS } from './lib/prompt';
 import { createUpscaleSessionIds, downloadPureResultBlob, measureDataUrlImage } from './lib/upscale-session';
 import { PixelCatInPlace } from './components/PixelCatInPlace';
 
@@ -65,6 +66,7 @@ export default function App() {
   // side becomes exactly this value (preserving source aspect ratio for the shorter side).
   const [customLongerSide, setCustomLongerSide] = useState<string>("");
   const [showCustomSize, setShowCustomSize] = useState(false);
+  const [userGuidance, setUserGuidance] = useState('');
   const [loadingPhraseIdx, setLoadingPhraseIdx] = useState(0);
   const [runError, setRunError] = useState<UpscaleRunErrorInfo | null>(null);
   const [openAiBillingBlocked, setOpenAiBillingBlocked] = useState(() => isOpenAiBillingBlocked());
@@ -290,7 +292,7 @@ export default function App() {
         originalSize.height,
         originalMaxDim,
         true,
-        undefined,
+        userGuidance.trim() || undefined,
         {
           targetW: validation.targetW,
           targetH: validation.targetH,
@@ -298,6 +300,7 @@ export default function App() {
           requestId,
           upscaleMode: mode,
           abortSignal: abortController.signal,
+          userGuidance: userGuidance.trim() || undefined,
         }
       );
 
@@ -380,6 +383,7 @@ export default function App() {
     setRunError(null);
     setCustomLongerSide('');
     setShowCustomSize(false);
+    setUserGuidance('');
     setProcessingMode(null);
     pureResultDataUrlRef.current = null;
     activeRequestIdRef.current = null;
@@ -554,6 +558,29 @@ export default function App() {
                       {modeDescription(upscaleMode)}
                     </p>
                   </div>
+                </div>
+
+                <div className="w-full">
+                  <label htmlFor="user-guidance" className="mb-2 block pl-1 text-xs font-bold uppercase tracking-wider text-slate-400">
+                    텍스트·로고 안내 <span className="text-[10px] font-normal normal-case">(선택 입력)</span>
+                  </label>
+                  <textarea
+                    id="user-guidance"
+                    value={userGuidance}
+                    onChange={(e) => setUserGuidance(e.target.value.slice(0, MAX_USER_GUIDANCE_CHARS))}
+                    disabled={controlsLocked}
+                    rows={2}
+                    placeholder="흐린 글자·로고 원문 (선택)"
+                    className="w-full resize-y rounded-xl border border-[#e7edf3] bg-white px-4 py-3 text-sm leading-relaxed text-[#0e141b] placeholder:text-slate-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                  <p className="mt-1.5 pl-1 text-[10px] font-medium leading-snug text-slate-500">
+                    비워 두셔도 됩니다. 작은 글자가 틀릴 때는 위치와 함께 적어 주세요. (예: 박스 옆면: "스타배송")
+                    {userGuidance.length > 0 && (
+                      <span className="ml-1 text-slate-400">
+                        {userGuidance.length}/{MAX_USER_GUIDANCE_CHARS}
+                      </span>
+                    )}
+                  </p>
                 </div>
 
                 {(openAiBillingBlocked || runError?.isBillingWarning) && upscaleMode === 'highQuality' && (

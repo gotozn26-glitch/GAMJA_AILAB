@@ -23,11 +23,12 @@ export async function upscaleWithOpenAi(params: {
   generationLongerSide: number;
   requestId: string;
   sourceStyle?: SourceVisualStyle;
+  userGuidance?: string;
   abortSignal?: AbortSignal;
 }): Promise<OpenAiUpscaleResult> {
-  const { base64, mimeType, targetW, targetH, generationLongerSide, requestId, sourceStyle, abortSignal } =
+  const { base64, mimeType, targetW, targetH, generationLongerSide, requestId, sourceStyle, userGuidance, abortSignal } =
     params;
-  const prompt = buildOpenAiUpscalePrompt(sourceStyle ?? 'flat_2d');
+  const prompt = buildOpenAiUpscalePrompt(sourceStyle ?? 'flat_2d', userGuidance);
   const outputSize = resolveOpenAiGenerationSize(targetW, targetH, generationLongerSide);
   const quality = Math.max(targetW, targetH) <= 512 ? 'medium' : 'high';
   const prepared = await prepareApiInput(base64, mimeType, outputSize);
