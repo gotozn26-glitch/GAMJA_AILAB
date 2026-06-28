@@ -285,30 +285,26 @@ export const GeneratorPage: React.FC = () => {
               onDrop={handleDrop}
               className={`w-full aspect-[4/2.5] flex flex-col items-center justify-center border-2 border-dashed rounded-3xl cursor-pointer transition-all group overflow-hidden relative ${
                 isDragging
-                  ? 'border-primary bg-primary/5 border-solid'
+                  ? 'border-primary bg-primary/5 scale-[1.02] ring-4 ring-primary/10'
                   : 'border-gray-200 hover:bg-gray-50 hover:border-primary/50'
               }`}
             >
               <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
-              {sourceImage ? (
-                <>
-                  <img src={sourceImage} className="w-full h-full object-contain p-4 drop-shadow-lg" />
-                  {isDragging && (
-                    <div className="absolute inset-0 bg-primary/10 backdrop-blur-[1px] flex items-center justify-center">
-                      <p className="text-primary font-black text-sm uppercase tracking-widest">새 이미지로 교체</p>
-                    </div>
-                  )}
-                </>
+              {isDragging ? (
+                <div className="flex flex-col items-center gap-3 text-center pointer-events-none animate-pulse">
+                  <div className="size-14 bg-primary rounded-2xl flex items-center justify-center text-white shadow-lg">
+                    <span className="material-symbols-outlined text-3xl font-bold">add_photo_alternate</span>
+                  </div>
+                  <p className="text-primary font-black text-sm">여기에 이미지를 놓으세요!</p>
+                </div>
+              ) : sourceImage ? (
+                <img src={sourceImage} className="w-full h-full object-contain p-4 drop-shadow-lg" />
               ) : (
                 <div className="flex flex-col items-center gap-4 text-center px-6">
-                  <div className={`size-12 rounded-xl flex items-center justify-center transition-transform ${
-                    isDragging ? 'bg-primary/20 text-primary scale-110' : 'bg-primary/10 text-primary group-hover:scale-110'
-                  }`}>
-                    <span className="material-symbols-outlined text-2xl font-bold">{isDragging ? 'download' : 'upload_file'}</span>
+                  <div className="size-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                    <span className="material-symbols-outlined text-2xl font-bold">upload_file</span>
                   </div>
-                  <p className={`font-black text-xs uppercase tracking-widest ${isDragging ? 'text-primary' : 'text-gray-400'}`}>
-                    {isDragging ? '여기에 놓으세요' : '클릭하거나 드래그해서 업로드'}
-                  </p>
+                  <p className="text-gray-400 font-black text-xs uppercase tracking-widest">클릭하거나 드래그해서 업로드</p>
                 </div>
               )}
             </div>

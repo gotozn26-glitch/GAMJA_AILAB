@@ -12,7 +12,7 @@ export function getCameraDirectives(rotation: Rotation): string {
     );
   } else if (pitch < 0) {
     directives.push(
-      'BOTTOM-UP VIEW (Pitch is negative): The camera is positioned low, looking up. Show the BOTTOM surface (sole, underbelly) of the object.',
+      'BOTTOM-UP VIEW (Pitch is negative / LOW-ANGLE): The camera is positioned underneath the object, looking up. The object MUST be tilted or floating in mid-air to fully expose its BOTTOM surface (sole of feet, underbelly, bottom plate) to the camera. It must NOT be resting flatly on a ground floor that covers the bottom. Show the underside of the object clearly.',
     );
   }
 
@@ -52,7 +52,9 @@ You must translate the 3D rotation parameters into the precise 2D rendered orien
   - High angle camera. The top of the object (top of the head, back, upper surfaces) must be highly visible and angled downwards towards the viewer.
 
 - **X-Tilt (Pitch) is NEGATIVE (-${Math.abs(rotation.x)}°)**:
-  - Low angle camera. The underbelly or bottom surface of the object must be tilted upwards and visible.
+  - Low angle camera view. The camera is underneath looking up.
+  - **CRITICAL**: Do NOT place the object flatly on a ground plane or floor. It must be floating, elevated, or tilted backwards/upwards in mid-air so that its **BOTTOM surface** (underbelly, soles of feet, belly, bottom plate) is fully exposed to the camera and highly visible to the viewer.
+  - Any ground shadows or reflections must be cast way below the floating object, leaving its underside clearly visible on the white background.
 
 ### 2. IDENTITY AND DETAIL SEEDING (IMAGE INPUTS)
 - **IMAGE 1** is the true **FRONT VIEW** identity of the object.
