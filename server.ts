@@ -2,7 +2,7 @@ import express, { type Response } from "express";
 import path from "path";
 import { GoogleGenAI, Type } from "@google/genai";
 import { NotionAPI } from "notion-client";
-import { buildMultiviewPerspectivePrompt } from "./Service/MultiView/services/multiviewPrompt";
+import { buildMultiviewPerspectivePrompt, buildFrontViewPrompt } from "./Service/MultiView/services/multiviewPrompt";
 
 const notionApi = new NotionAPI();
 const LABCORD_NOTION_PAGE_ID = "ae0d2817-213d-4086-9b39-de9a057e9cde";
@@ -494,9 +494,9 @@ async function startServer() {
   });
 
   /** Rotation(MultiView) — 클라이언트에 API 키를 두지 않고 서버에서만 Gemini 호출 */
-  app.post("/api/multiview/generate", async (req, res) => {
-    const { sourceDataUrl, cubeDataUrl, rotation } = req.body || {};
-    if (!sourceDataUrl || !cubeDataUrl || !rotation || typeof rotation.x !== "number" || typeof rotation.y !== "number") {
+  app.post("/api/multiview/analyze", async (req, res) => {
+    const { sourceDataUrl, objectName } = req.body || {};
+    if (!sourceDataUrl || typeof objectName !== "string") {
       return res.status(400).json({ error: "요청 형식이 올바르지 않습니다." });
     }
 
@@ -506,19 +506,80 @@ async function startServer() {
     }
 
     const src = decodeDataUrl(sourceDataUrl);
-    const cube = decodeDataUrl(cubeDataUrl);
-    if (!src.data || !cube.data) {
+    if (!src.data) {
+      return res.status(400).json({ error: "이미지 데이터가 비어 있습니다." });
+    }
+
+    const model =
+      (process.env.MULTIVIEW_ANALYZE_MODEL || "").trim() || "gemini-2.5-flash";
+    const ai = new GoogleGenAI({ apiKey });
+
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: [
+          { inlineData: { data: src.data, mimeType: src.mimeType } },
+          {
+            text: `Analyze if this image is already the FRONT view (facing the camera directly) of the object described as "${objectName}". Respond in JSON format with "isFront" (boolean) and "reason" (string, explaining your analysis in Korean).`,
+          },
+        ],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              isFront: {
+                type: Type.BOOLEAN,
+                description: "Whether the image shows the object from its direct front view facing the camera.",
+              },
+              reason: {
+                type: Type.STRING,
+                description: "Brief explanation in Korean of why it is or is not the front view.",
+              },
+            },
+            required: ["isFront", "reason"],
+          },
+        },
+      });
+
+      if (response.text) {
+        const data = JSON.parse(response.text.trim());
+        return res.json({
+          isFront: !!data.isFront,
+          reason: typeof data.reason === "string" ? data.reason : "",
+        });
+      }
+      res.json({ isFront: true, reason: "분석 결과를 받아오지 못했습니다. 기본값으로 정면 처리합니다." });
+    } catch (error: any) {
+      console.error("Multiview analyze error:", error);
+      const message = String(error?.message || "");
+      if (message.includes("API key not valid") || message.includes("API_KEY_INVALID")) {
+        return res.status(401).json({ error: "Gemini API 키가 유효하지 않습니다." });
+      }
+      res.status(500).json({ error: message || "정면 분석에 실패했습니다." });
+    }
+  });
+
+  app.post("/api/multiview/front-view", async (req, res) => {
+    const { sourceDataUrl, objectName } = req.body || {};
+    if (!sourceDataUrl || typeof objectName !== "string") {
+      return res.status(400).json({ error: "요청 형식이 올바르지 않습니다." });
+    }
+
+    const apiKey = getGeminiApiKey();
+    if (!apiKey) {
+      return res.status(500).json({ error: "서버에 GEMINI_API_KEY(또는 GOOGLE_API_KEY)가 설정되어 있지 않습니다." });
+    }
+
+    const src = decodeDataUrl(sourceDataUrl);
+    if (!src.data) {
       return res.status(400).json({ error: "이미지 데이터가 비어 있습니다." });
     }
 
     const model =
       (process.env.MULTIVIEW_GEMINI_MODEL || "").trim() || "gemini-2.5-flash-image";
     const ai = new GoogleGenAI({ apiKey });
-    const perspectivePrompt = buildMultiviewPerspectivePrompt({
-      x: rotation.x,
-      y: rotation.y,
-      z: typeof rotation.z === "number" ? rotation.z : 0,
-    });
+    const prompt = buildFrontViewPrompt(objectName);
 
     try {
       const response = await ai.models.generateContent({
@@ -526,10 +587,81 @@ async function startServer() {
         contents: {
           parts: [
             { inlineData: { data: src.data, mimeType: src.mimeType } },
-            { inlineData: { data: cube.data, mimeType: cube.mimeType } },
-            { text: perspectivePrompt },
+            { text: prompt },
           ],
         },
+        config: { imageConfig: { aspectRatio: "1:1" } },
+      });
+
+      if (!response.candidates?.[0]?.content?.parts) {
+        return res.status(403).json({ error: "AI 안전 필터에 의해 생성이 제한되었습니다." });
+      }
+
+      for (const part of response.candidates[0].content.parts) {
+        if (part.inlineData) {
+          return res.json({ url: `data:image/png;base64,${part.inlineData.data}` });
+        }
+      }
+      res.status(500).json({ error: "정면 이미지 생성 데이터가 없습니다." });
+    } catch (error: any) {
+      console.error("Multiview front-view error:", error);
+      const message = String(error?.message || "");
+      if (message.includes("API key not valid") || message.includes("API_KEY_INVALID")) {
+        return res.status(401).json({ error: "Gemini API 키가 유효하지 않습니다." });
+      }
+      res.status(500).json({ error: message || "정면 이미지 생성에 실패했습니다." });
+    }
+  });
+
+  app.post("/api/multiview/generate", async (req, res) => {
+    const { frontDataUrl, sourceDataUrl, cubeDataUrl, rotation, originalDataUrl } = req.body || {};
+    const frontUrl = frontDataUrl || sourceDataUrl;
+    if (!frontUrl || !cubeDataUrl || !rotation || typeof rotation.x !== "number" || typeof rotation.y !== "number") {
+      return res.status(400).json({ error: "요청 형식이 올바르지 않습니다." });
+    }
+
+    const apiKey = getGeminiApiKey();
+    if (!apiKey) {
+      return res.status(500).json({ error: "서버에 GEMINI_API_KEY(또는 GOOGLE_API_KEY)가 설정되어 있지 않습니다." });
+    }
+
+    const front = decodeDataUrl(frontUrl);
+    const cube = decodeDataUrl(cubeDataUrl);
+    if (!front.data || !cube.data) {
+      return res.status(400).json({ error: "이미지 데이터가 비어 있습니다." });
+    }
+
+    const original =
+      typeof originalDataUrl === "string" && originalDataUrl && originalDataUrl !== frontUrl
+        ? decodeDataUrl(originalDataUrl)
+        : null;
+    const hasExtraReference = !!(original?.data);
+
+    const model =
+      (process.env.MULTIVIEW_GEMINI_MODEL || "").trim() || "gemini-2.5-flash-image";
+    const ai = new GoogleGenAI({ apiKey });
+    const perspectivePrompt = buildMultiviewPerspectivePrompt(
+      {
+        x: rotation.x,
+        y: rotation.y,
+        z: typeof rotation.z === "number" ? rotation.z : 0,
+      },
+      hasExtraReference,
+    );
+
+    const parts: Array<{ inlineData?: { data: string; mimeType: string }; text?: string }> = [
+      { inlineData: { data: front.data, mimeType: front.mimeType } },
+    ];
+    if (hasExtraReference && original) {
+      parts.push({ inlineData: { data: original.data, mimeType: original.mimeType } });
+    }
+    parts.push({ inlineData: { data: cube.data, mimeType: cube.mimeType } });
+    parts.push({ text: perspectivePrompt });
+
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: { parts },
         config: { imageConfig: { aspectRatio: "1:1" } },
       });
 

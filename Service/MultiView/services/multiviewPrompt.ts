@@ -3,63 +3,78 @@ import type { Rotation } from '../types';
 export function getCameraDirectives(rotation: Rotation): string {
   const { x: pitch, y: yaw } = rotation;
   const directives = [
-    "RED FRAME (FRONT): 이 평면은 물체의 '진정한 정면'입니다. 이미지 1의 정면 얼굴이 이 프레임 안에 완벽히 정렬되어야 합니다.",
+    'RED FRAME (FRONT): This is the anchor representing the original FRONT direction.',
   ];
 
   if (pitch > 0) {
     directives.push(
-      `TOP VIEW (Pitch: ${pitch}°): 카메라가 위에서 내려다봅니다. 물체의 '윗부분(TOP)'이 노출되어야 합니다.`,
+      'TOP-DOWN VIEW (Pitch is positive): The camera is positioned high, looking down. Show the TOP surface (head, back, top shell) of the object clearly.',
     );
   } else if (pitch < 0) {
     directives.push(
-      `BOTTOM VIEW (Pitch: ${pitch}°): 카메라가 아래에서 위를 봅니다. 물체의 '밑바닥(BOTTOM)'이 노출되어야 합니다.`,
+      'BOTTOM-UP VIEW (Pitch is negative): The camera is positioned low, looking up. Show the BOTTOM surface (sole, underbelly) of the object.',
     );
   }
 
   if (yaw > 0) {
     directives.push(
-      `SIDE VIEW (Yaw: ${yaw}°): 카메라가 오른쪽으로 이동했습니다. 따라서 물체의 '왼쪽 측면(LEFT SIDE)'이 보여야 합니다.`,
+      "YAW IS POSITIVE (Yaw > 0): The camera has moved to the right. The object's eyes/face must point towards the LEFT side of the image. Consequently, the object's RIGHT side profile (right cheek, right side of body, right arm/leg) must face the camera.",
     );
   } else if (yaw < 0) {
     directives.push(
-      `SIDE VIEW (Yaw: ${yaw}°): 카메라가 왼쪽으로 이동했습니다. 따라서 물체의 '오른쪽 측면(RIGHT SIDE)'이 보여야 합니다.`,
+      "YAW IS NEGATIVE (Yaw < 0): The camera has moved to the left. The object's eyes/face must point towards the RIGHT side of the image. Consequently, the object's LEFT side profile (left cheek, left side of body, left arm/leg) must face the camera.",
     );
   }
 
   return directives.join('\n- ');
 }
 
-export function buildMultiviewPerspectivePrompt(rotation: Rotation): string {
+export function buildMultiviewPerspectivePrompt(rotation: Rotation, hasExtraReference = false): string {
   const cameraDirectives = getCameraDirectives(rotation);
+
   return `
 [SYSTEM: 3D SPATIAL VECTORING ENGINE]
 
-### 1. COORDINATE TRUTH (CAMERA DYNAMICS)
-- **PITCH (${rotation.x}°)**: 
-  - If Positive: Camera is UP. Show TOP thickness.
-  - If Negative: Camera is DOWN. Show BOTTOM thickness.
-- **YAW (${rotation.y}°)**:
-  - If Positive (+): Camera is to the RIGHT of the object. You MUST show the **LEFT SIDE** of the object.
-  - If Negative (-): Camera is to the LEFT of the object. You MUST show the **RIGHT SIDE** of the object.
+### 1. ABSOLUTE ROTATION AND ORIENTATION MECHANICS
+You must translate the 3D rotation parameters into the precise 2D rendered orientation of the object. Look at the guide wireframe cube (the last image) and apply these physical laws:
 
-### 2. IDENTITY ANCHOR (RED FRAME)
-- **IMAGE 1** is the source identity.
-- **IMAGE 2** is the perspective guide. 
-- Map the Front of the object from Image 1 EXACTLY onto the **RED FRAME** in Image 2. 
-- The object's eyes/face must point in the same direction the Red Frame is facing. 
-- **ERROR TO VOID**: Do not just paste the 2D image. Use the Red Frame as a window to define the object's 3D orientation.
+- **Y-Spin (Yaw) is POSITIVE (+${rotation.y}°)**:
+  - **Object's Facing Direction**: The object must look/face towards the **LEFT side of the final image**.
+  - **Visible Flank**: The camera captures the object's **actual RIGHT side/profile** (right cheek, right side of body).
+  - **ERROR TO AVOID**: Do NOT make the object face the right side! Do NOT show the left profile!
 
-### 3. VOLUMETRIC RULES
-- Extrude the 2D shape along the Blue and Green axis.
-- The object must be a solid, volumetric asset (like a game character model).
-- Lighting must emphasize the 3D form, with shadows on the side away from the camera.
+- **Y-Spin (Yaw) is NEGATIVE (-${Math.abs(rotation.y)}°)**:
+  - **Object's Facing Direction**: The object must look/face towards the **RIGHT side of the final image**.
+  - **Visible Flank**: The camera captures the object's **actual LEFT side/profile** (left cheek, left side of body).
+  - **ERROR TO AVOID**: Do NOT make the object face the left side! Do NOT show the right profile!
 
-### 4. OUTPUT INSTRUCTIONS
-- ${cameraDirectives}
+- **X-Tilt (Pitch) is POSITIVE (+${rotation.x}°)**:
+  - High angle camera. The top of the object (top of the head, back, upper surfaces) must be highly visible and angled downwards towards the viewer.
+
+- **X-Tilt (Pitch) is NEGATIVE (-${Math.abs(rotation.x)}°)**:
+  - Low angle camera. The underbelly or bottom surface of the object must be tilted upwards and visible.
+
+### 2. IDENTITY AND DETAIL SEEDING (IMAGE INPUTS)
+- **IMAGE 1** is the true **FRONT VIEW** identity of the object.
+${hasExtraReference ? '- **IMAGE 2** is the **ORIGINAL UPLOADED IMAGE** showing the object from a specific perspective. Use this image as a secondary detail source! Use its high-frequency details, textures, and unseen parts (like side profiles, backside, or colors) to make the rotated 3D view highly realistic and structurally accurate.' : ''}
+- The last image is the Guide Cube Wireframe. It serves as a spatial transform guide. Match the orientation of the Red Frame (FRONT face) and the adjacent faces labeled "LEFT", "RIGHT", "TOP", "BOTTOM".
+
+### 3. RENDERING STYLE
 - Render the result on a pure white (#FFFFFF) background.
-- NO cube, NO labels, NO UI elements.
-- Style: Clean 3D render (High-quality 3D asset).
+- NO cube wireframe lines, NO text labels, NO UI overlay.
+- Maintain the high-quality 3D asset/toy style, textures, lighting, and colors of the source object perfectly.
 
-**FINAL CHECK**: If Yaw is positive (+), is the LEFT side visible? If Pitch is positive, is the TOP visible? If the orientation does not match the Red Frame, you have failed.
+### 4. SUMMARY SPECIFICATIONS
+- ${cameraDirectives}
+`;
+}
+
+export function buildFrontViewPrompt(objectName: string): string {
+  return `
+[SYSTEM: 3D FRONT-VIEW GENERATION ENGINE]
+- **SOURCE IDENTITY**: The provided image contains an object described as "${objectName}".
+- **TASK**: The provided image shows a non-front view (e.g., side, back, or top) of this object. You MUST generate a new high-quality 3D asset style FRONT-VIEW image of this exact same object, facing the camera directly.
+- **STYLE AND STYLE ATTRIBUTES**: Maintain the exact same colors, textures, style, and identity of the object in the source image.
+- **OUTPUT**: Render the true front view of the object on a pure white (#FFFFFF) background. No UI, no labels, no other objects.
 `;
 }

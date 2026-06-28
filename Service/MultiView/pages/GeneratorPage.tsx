@@ -1,20 +1,10 @@
+
 import { useState, useRef, forwardRef } from 'react';
 import { toPng } from 'html-to-image';
 import { Rotation, GeneratedImage } from '../types';
-import { generateSingleView, editImage } from '../services/geminiService';
+import { generateSingleView, editImage, analyzeIsFrontView, generateFrontView } from '../services/geminiService';
 
-declare global {
-  interface AIStudio {
-    hasSelectedApiKey: () => Promise<boolean>;
-    openSelectKey: () => Promise<void>;
-  }
-
-  interface Window {
-    aistudio?: AIStudio;
-  }
-}
-
-const CubePreview = forwardRef<HTMLDivElement, { rotation: Rotation, isForScreenshot: boolean, sourceImage?: string | null }>(({ rotation, isForScreenshot, sourceImage }, ref) => {
+const CubePreview = forwardRef<HTMLDivElement, { rotation: Rotation, isForScreenshot: boolean, frontImage?: string | null }>(({ rotation, isForScreenshot, frontImage }, ref) => {
   const faceSize = isForScreenshot ? 800 : 140; 
   const translateValue = faceSize / 2;
 
@@ -30,8 +20,8 @@ const CubePreview = forwardRef<HTMLDivElement, { rotation: Rotation, isForScreen
     >
       {isFront ? (
         <div className="relative w-full h-full bg-white flex items-center justify-center">
-           {sourceImage ? (
-             <img src={sourceImage} className="w-full h-full object-contain p-8 relative z-10" />
+           {frontImage ? (
+             <img src={frontImage} className="w-full h-full object-contain p-8 relative z-10" />
            ) : (
              <span className="material-symbols-outlined text-red-600 text-8xl">image</span>
            )}
@@ -93,6 +83,10 @@ const CubePreview = forwardRef<HTMLDivElement, { rotation: Rotation, isForScreen
 export const GeneratorPage: React.FC = () => {
   const [rotation, setRotation] = useState<Rotation>({ x: 0, y: 0, z: 0 }); 
   const [sourceImage, setSourceImage] = useState<string | null>(null);
+  const [frontImage, setFrontImage] = useState<string | null>(null);
+  const [objectName, setObjectName] = useState('');
+  const [isInferringFront, setIsInferringFront] = useState(false);
+  const [frontInferenceStatus, setFrontInferenceStatus] = useState<string | null>(null);
   const [results, setResults] = useState<GeneratedImage[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [retouchPrompt, setRetouchPrompt] = useState('');
@@ -106,11 +100,45 @@ export const GeneratorPage: React.FC = () => {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setSourceImage(reader.result as string);
+        const b64 = reader.result as string;
+        setSourceImage(b64);
+        setFrontImage(b64);
         setResults([]);
         setRotation({ x: 0, y: 0, z: 0 });
+        setObjectName('');
+        setFrontInferenceStatus(null);
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleInferFront = async () => {
+    if (!sourceImage) return;
+
+    setIsInferringFront(true);
+    setFrontInferenceStatus("AI가 오브젝트의 특징과 시점을 정밀 분석 중입니다...");
+    
+    try {
+      const nameToUse = objectName.trim() || "오브젝트";
+      const analysis = await analyzeIsFrontView(sourceImage, nameToUse);
+      
+      if (analysis.isFront) {
+        setFrontImage(sourceImage);
+        setFrontInferenceStatus("✨ AI 판독 완료: 이미 정면 뷰인 것으로 판정되었습니다. 원본 이미지를 그대로 정면(Front)으로 고정했습니다.");
+      } else {
+        setFrontInferenceStatus("🔍 측면/다각도 뷰 감지: 정면 뷰를 정밀하게 추론하여 생성하고 있습니다...");
+        const inferredBase64 = await generateFrontView(sourceImage, nameToUse);
+        setFrontImage(inferredBase64);
+        setFrontInferenceStatus("🎨 정면 복원 완료: 측면 이미지를 기반으로 정면(Front) 뷰를 새로 생성하여 고정했습니다.");
+      }
+    } catch (e: any) {
+      console.error("Front view inference failed", e);
+      const msg = typeof e?.message === "string" && e.message.trim() ? e.message : "정면 추론 중 오류가 발생했습니다.";
+      alert(msg);
+      setFrontImage(sourceImage);
+      setFrontInferenceStatus("⚠️ 정면 추론에 실패하여 업로드된 원본 이미지를 정면으로 기본 고정했습니다.");
+    } finally {
+      setIsInferringFront(false);
     }
   };
 
@@ -138,14 +166,6 @@ export const GeneratorPage: React.FC = () => {
   const startProcessing = async () => {
     if (!sourceImage || !hiddenCubeRef.current) return;
 
-    if (window.aistudio?.hasSelectedApiKey) {
-      const hasKey = await window.aistudio.hasSelectedApiKey();
-      if (!hasKey) {
-        await window.aistudio.openSelectKey?.();
-        return;
-      }
-    }
-
     setIsProcessing(true);
     try {
       await new Promise(r => setTimeout(r, 1500));
@@ -154,17 +174,12 @@ export const GeneratorPage: React.FC = () => {
         pixelRatio: 1,
         backgroundColor: '#ffffff',
       });
-      
-      const singleUrl = await generateSingleView(sourceImage, cubeBase64, rotation);
+
+      const singleUrl = await generateSingleView(frontImage || sourceImage, cubeBase64, rotation, sourceImage);
       setResults([{ url: singleUrl, title: 'Spatial Sync Result', view: `${getViewpointText()} (${rotation.x}°, ${rotation.y}°)` }]);
     } catch (e: any) {
-      if (e?.message === "API_KEY_RESET") {
-        alert("API 키 설정이 필요합니다.");
-        await window.aistudio?.openSelectKey?.();
-      } else {
-        const msg = typeof e?.message === "string" && e.message.trim() ? e.message : "렌더링 엔진 오류가 발생했습니다.";
-        alert(msg);
-      }
+      const msg = typeof e?.message === "string" && e.message.trim() ? e.message : "렌더링 엔진 오류가 발생했습니다.";
+      alert(msg);
     } finally {
       setIsProcessing(false);
     }
@@ -190,6 +205,9 @@ export const GeneratorPage: React.FC = () => {
 
   const resetAll = () => {
     setSourceImage(null);
+    setFrontImage(null);
+    setObjectName('');
+    setFrontInferenceStatus(null);
     setResults([]);
     setRotation({ x: 0, y: 0, z: 0 });
     setRetouchPrompt('');
@@ -199,7 +217,7 @@ export const GeneratorPage: React.FC = () => {
     <div className="w-full max-w-[1400px] mx-auto px-6 py-6">
       <div className="fixed -left-[60000px] top-0 pointer-events-none opacity-0">
          <div className="w-[1600px] h-[1600px] bg-white flex items-center justify-center">
-            <CubePreview ref={hiddenCubeRef} rotation={rotation} isForScreenshot={true} sourceImage={sourceImage} />
+            <CubePreview ref={hiddenCubeRef} rotation={rotation} isForScreenshot={true} frontImage={frontImage || sourceImage} />
          </div>
       </div>
 
@@ -234,6 +252,51 @@ export const GeneratorPage: React.FC = () => {
                 </div>
               )}
             </div>
+
+            {sourceImage && (
+              <div className="mt-5 space-y-4 border-t border-gray-100 pt-4 animate-in fade-in duration-300">
+                <div className="space-y-2">
+                  <label className="text-[13px] font-black text-gray-700 flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-lg text-primary">label</span>
+                    이 오브젝트는 무엇인가요? (선택사항)
+                  </label>
+                  <input 
+                    type="text" 
+                    value={objectName}
+                    onChange={(e) => setObjectName(e.target.value)}
+                    placeholder="예: 고양이 피규어, 머그컵, 운동화 등"
+                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/50 shadow-sm placeholder:text-gray-300 transition-all"
+                    disabled={isInferringFront}
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleInferFront}
+                  disabled={isInferringFront || !objectName.trim()}
+                  className="w-full h-12 bg-gray-900 hover:bg-black text-white disabled:bg-gray-100 disabled:text-gray-300 rounded-2xl font-black text-sm transition-all flex items-center justify-center gap-2 active:scale-95 shadow-md cursor-pointer"
+                >
+                  {isInferringFront ? (
+                    <>
+                      <div className="size-4 border-2 border-white/20 border-t-white animate-spin rounded-full"></div>
+                      <span>정면 뷰 추론 및 분석 중...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-lg">auto_fix_high</span>
+                      <span>정면 뷰 추론 및 프레임 고정</span>
+                    </>
+                  )}
+                </button>
+
+                {frontInferenceStatus && (
+                  <div className="bg-primary/5 border border-primary/10 rounded-2xl p-4 text-[13px] font-medium text-gray-700 flex items-start gap-2.5 shadow-sm animate-in fade-in duration-300">
+                    <span className="material-symbols-outlined text-primary text-lg shrink-0 mt-0.5 animate-pulse">info</span>
+                    <p className="leading-relaxed whitespace-pre-line text-left">{frontInferenceStatus}</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Bottom Settings Card */}
@@ -251,7 +314,7 @@ export const GeneratorPage: React.FC = () => {
             </div>
 
             <div className="flex-1 flex flex-col gap-8">
-              <CubePreview rotation={rotation} isForScreenshot={false} sourceImage={sourceImage} />
+              <CubePreview rotation={rotation} isForScreenshot={false} frontImage={frontImage || sourceImage} />
 
               <div className="space-y-8 pt-2">
                 <div className="space-y-4">
