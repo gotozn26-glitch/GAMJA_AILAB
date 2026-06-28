@@ -91,25 +91,66 @@ export const GeneratorPage: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [retouchPrompt, setRetouchPrompt] = useState('');
   const [isRetouching, setIsRetouching] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hiddenCubeRef = useRef<HTMLDivElement>(null);
+  const dragCounterRef = useRef(0);
+
+  const loadImageFile = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      alert('이미지 파일만 업로드할 수 있습니다.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const b64 = reader.result as string;
+      setSourceImage(b64);
+      setFrontImage(b64);
+      setResults([]);
+      setRotation({ x: 0, y: 0, z: 0 });
+      setObjectName('');
+      setFrontInferenceStatus(null);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const b64 = reader.result as string;
-        setSourceImage(b64);
-        setFrontImage(b64);
-        setResults([]);
-        setRotation({ x: 0, y: 0, z: 0 });
-        setObjectName('');
-        setFrontInferenceStatus(null);
-      };
-      reader.readAsDataURL(file);
+    if (file) loadImageFile(file);
+    e.target.value = '';
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current += 1;
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current -= 1;
+    if (dragCounterRef.current <= 0) {
+      dragCounterRef.current = 0;
+      setIsDragging(false);
     }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current = 0;
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) loadImageFile(file);
   };
 
   const handleInferFront = async () => {
@@ -237,18 +278,37 @@ export const GeneratorPage: React.FC = () => {
             </div>
 
             <div 
-              onClick={() => fileInputRef.current?.click()} 
-              className="w-full aspect-[4/2.5] flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-3xl cursor-pointer hover:bg-gray-50 hover:border-primary/50 transition-all group overflow-hidden relative"
+              onClick={() => fileInputRef.current?.click()}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+              className={`w-full aspect-[4/2.5] flex flex-col items-center justify-center border-2 border-dashed rounded-3xl cursor-pointer transition-all group overflow-hidden relative ${
+                isDragging
+                  ? 'border-primary bg-primary/5 border-solid'
+                  : 'border-gray-200 hover:bg-gray-50 hover:border-primary/50'
+              }`}
             >
               <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
               {sourceImage ? (
-                <img src={sourceImage} className="w-full h-full object-contain p-4 drop-shadow-lg" />
+                <>
+                  <img src={sourceImage} className="w-full h-full object-contain p-4 drop-shadow-lg" />
+                  {isDragging && (
+                    <div className="absolute inset-0 bg-primary/10 backdrop-blur-[1px] flex items-center justify-center">
+                      <p className="text-primary font-black text-sm uppercase tracking-widest">새 이미지로 교체</p>
+                    </div>
+                  )}
+                </>
               ) : (
-                <div className="flex flex-col items-center gap-4 text-center">
-                  <div className="size-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                    <span className="material-symbols-outlined text-2xl font-bold">upload_file</span>
+                <div className="flex flex-col items-center gap-4 text-center px-6">
+                  <div className={`size-12 rounded-xl flex items-center justify-center transition-transform ${
+                    isDragging ? 'bg-primary/20 text-primary scale-110' : 'bg-primary/10 text-primary group-hover:scale-110'
+                  }`}>
+                    <span className="material-symbols-outlined text-2xl font-bold">{isDragging ? 'download' : 'upload_file'}</span>
                   </div>
-                  <p className="text-gray-400 font-black text-xs uppercase tracking-widest">Click to upload</p>
+                  <p className={`font-black text-xs uppercase tracking-widest ${isDragging ? 'text-primary' : 'text-gray-400'}`}>
+                    {isDragging ? '여기에 놓으세요' : '클릭하거나 드래그해서 업로드'}
+                  </p>
                 </div>
               )}
             </div>
