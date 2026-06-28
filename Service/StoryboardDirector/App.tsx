@@ -79,6 +79,10 @@ const App: React.FC = () => {
   const [selectedStyleId, setSelectedStyleId] = useState<string>(STYLE_PRESETS[0].id);
   const [customStyleImage, setCustomStyleImage] = useState<string | null>(null);
 
+  const [isDraggingBase, setIsDraggingBase] = useState(false);
+  const [isDraggingStyle, setIsDraggingStyle] = useState(false);
+  const [dragOverSlotId, setDragOverSlotId] = useState<string | null>(null);
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const bgImageRef = useRef<HTMLImageElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -275,12 +279,43 @@ const App: React.FC = () => {
 
   const handleDrop = (e: React.DragEvent, id: string) => {
     e.preventDefault();
+    setDragOverSlotId(null);
     const file = e.dataTransfer.files[0];
     if (file && file.type.startsWith('image/')) {
       const reader = new FileReader();
       reader.onload = (re) => {
         const base64 = re.target?.result as string;
         setSlots(prev => prev.map(s => s.id === id ? { ...s, image: base64, confidence: 100 } : s));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleBaseDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingBase(false);
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (re) => {
+        const base64 = re.target?.result as string;
+        setBaseImage(base64);
+        setGeneratedImages([]); 
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleCustomStyleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingStyle(false);
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (re) => {
+        const base64 = re.target?.result as string;
+        setCustomStyleImage(base64);
+        setSelectedStyleId('custom');
       };
       reader.readAsDataURL(file);
     }
@@ -372,7 +407,7 @@ const App: React.FC = () => {
             <Sparkles className="w-6 h-6 text-white" strokeWidth={1.5} />
           </div>
           <div className="flex flex-col">
-            <h2 className="text-white text-lg font-bold leading-tight tracking-tight">Storyboard Director AI</h2>
+            <h2 className="text-white text-lg font-bold leading-tight tracking-tight">Scene Creator</h2>
             <span className="text-white/40 text-[10px] uppercase tracking-[0.2em] font-medium">Professional Remastering Studio</span>
           </div>
         </div>
@@ -445,7 +480,10 @@ const App: React.FC = () => {
                 {layers.map((layer) => (
                   <div 
                     key={layer.id} 
-                    className={`flex items-center justify-between p-3 rounded-xl border transition-all ${layer.active ? 'glass-card border-white/20 bg-white/5' : 'bg-white/5 border-transparent opacity-60'}`}
+                    onDragOver={layer.type === 'base' ? (e) => { e.preventDefault(); setIsDraggingBase(true); } : undefined}
+                    onDragLeave={layer.type === 'base' ? () => setIsDraggingBase(false) : undefined}
+                    onDrop={layer.type === 'base' ? handleBaseDrop : undefined}
+                    className={`flex items-center justify-between p-3 rounded-xl border transition-all ${layer.active ? 'glass-card border-white/20 bg-white/5' : 'bg-white/5 border-transparent opacity-60'} ${layer.type === 'base' && isDraggingBase ? 'border-white bg-white/10 ring-2 ring-white/10' : ''}`}
                   >
                     <div className="flex items-center gap-3">
                       {layer.type === 'base' ? (
@@ -566,7 +604,21 @@ const App: React.FC = () => {
             </div>
 
             <div className="w-full h-full flex items-center justify-center p-8">
-              <div className="relative aspect-video w-full max-w-5xl shadow-[0_0_100px_rgba(0,0,0,0.5)] rounded-lg overflow-hidden border border-white/10 bg-black/20">
+              <div 
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDraggingBase(true);
+                }}
+                onDragLeave={() => setIsDraggingBase(false)}
+                onDrop={handleBaseDrop}
+                className={`relative aspect-video w-full max-w-5xl shadow-[0_0_100px_rgba(0,0,0,0.5)] rounded-lg overflow-hidden border transition-all duration-300 bg-black/20 ${isDraggingBase ? 'border-white bg-white/5 ring-4 ring-white/10 scale-[1.01]' : 'border-white/10'}`}
+              >
+                {isDraggingBase && (
+                  <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center gap-4 z-50 pointer-events-none border-4 border-dashed border-white/30 m-2 rounded-lg">
+                    <ImagePlus className="w-16 h-16 text-white/60 animate-bounce" strokeWidth={1} />
+                    <p className="text-white font-bold tracking-widest text-sm uppercase">Drop here to upload storyboard</p>
+                  </div>
+                )}
                 {baseImage ? (
                   <img 
                     ref={bgImageRef}
@@ -642,9 +694,13 @@ const App: React.FC = () => {
                 <div 
                   key={slot.id} 
                   onClick={() => setActiveColor(slot.color)}
-                  onDragOver={(e) => e.preventDefault()}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOverSlotId(slot.id);
+                  }}
+                  onDragLeave={() => setDragOverSlotId(null)}
                   onDrop={(e) => handleDrop(e, slot.id)}
-                  className={`relative p-4 glass-card rounded-2xl transition-all duration-500 group/slot cursor-pointer ${activeColor === slot.color ? 'ring-2 ring-white/40 bg-white/5' : 'hover:bg-white/5'}`} 
+                  className={`relative p-4 glass-card rounded-2xl transition-all duration-500 group/slot cursor-pointer border ${dragOverSlotId === slot.id ? 'border-dashed border-white bg-white/10 ring-4 ring-white/10 scale-[1.02]' : activeColor === slot.color ? 'border-white/20 ring-2 ring-white/40 bg-white/5' : 'border-transparent hover:bg-white/5'}`} 
                 >
                   <div className="flex gap-4 items-start">
                     <div 
@@ -759,7 +815,13 @@ const App: React.FC = () => {
               
               <button
                 onClick={handleCustomStyleUpload}
-                className={`relative w-32 h-16 rounded-xl overflow-hidden border-2 border-dashed transition-all shrink-0 flex flex-col items-center justify-center group ${selectedStyleId === 'custom' ? 'border-white/60 bg-white/5' : 'border-white/10 bg-white/5 hover:border-white/30'}`}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDraggingStyle(true);
+                }}
+                onDragLeave={() => setIsDraggingStyle(false)}
+                onDrop={handleCustomStyleDrop}
+                className={`relative w-32 h-16 rounded-xl overflow-hidden border-2 border-dashed transition-all shrink-0 flex flex-col items-center justify-center group ${isDraggingStyle ? 'border-white bg-white/20 scale-[1.05]' : selectedStyleId === 'custom' ? 'border-white/60 bg-white/5' : 'border-white/10 bg-white/5 hover:border-white/30'}`}
               >
                 {customStyleImage ? (
                   <>

@@ -1,5 +1,5 @@
 {
-  "name": "Storyboard Director AI",
+  "name": "Scene Creator",
   "description": "A professional AI-powered tool for storyboard artists to transform rough sketches into high-fidelity visuals using color masking and reference-based generation.",
   "requestFramePermissions": [
     "camera"
