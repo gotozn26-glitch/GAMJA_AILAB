@@ -29,13 +29,13 @@ import {
 } from 'lucide-react';
 
 const INITIAL_SLOTS: ReferenceSlot[] = [
-  { id: 'A', color: '#ef4444', name: 'Slot A (Red)', type: 'Object description' },
-  { id: 'B', color: '#3b82f6', name: 'Slot B (Blue)', type: 'Object description' },
-  { id: 'C', color: '#eab308', name: 'Slot C (Yellow)', type: 'Object description' },
+  { id: 'A', color: '#ef4444', name: 'Slot A (Red)', type: '' },
+  { id: 'B', color: '#3b82f6', name: 'Slot B (Blue)', type: '' },
+  { id: 'C', color: '#eab308', name: 'Slot C (Yellow)', type: '' },
 ];
 
 const STYLE_PRESETS: StylePreset[] = [
-  { id: 'cinematic', name: 'Cinematic', description: 'Cinematic depth and grandeur', preview: 'https://picsum.photos/200/200?random=20', promptHint: 'Cinematic film style. High dynamic range, shallow depth of field, professional color grading, epic lighting.' },
+  { id: 'cinematic', name: 'Cinematic', description: 'Cinematic depth and grandeur', preview: 'https://picsum.photos/200/200?random=20', promptHint: 'Photorealistic live-action cinematic film still. Real-life photography, 8k resolution, highly detailed skin and material textures, shot on a 35mm camera lens, professional color grading, realistic lighting.' },
   { id: 'neo-noir', name: 'Neo-Noir', description: 'Strong contrast, cool tones', preview: 'https://picsum.photos/200/200?random=15', promptHint: 'Neo-Noir Oil Painting style. Rich textures, dramatic lighting, and deep shadows.' },
   { id: 'toy-3d', name: 'Toy 3D', description: 'Cute 3D characters, soft textures', preview: 'https://picsum.photos/200/200?random=21', promptHint: '3D toy style, Pixar-like animation aesthetic. Soft plastic textures, vibrant colors, studio lighting, cute and rounded forms.' },
   { id: 'cyberpunk', name: 'Cyberpunk', description: 'Neon lighting, high-tech', preview: 'https://picsum.photos/200/200?random=17', promptHint: 'Cyberpunk cinematic style. Neon lights, rainy atmosphere, high-tech details, futuristic grit.' },
@@ -387,7 +387,7 @@ const App: React.FC = () => {
       id: `S${nextIndex + 1}`,
       color: color,
       name: `Slot ${String.fromCharCode(65 + nextIndex)}`,
-      type: 'Object description'
+      type: ''
     };
     setSlots([...slots, newSlot]);
     setActiveColor(color);

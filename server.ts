@@ -3,6 +3,7 @@ import path from "path";
 import { GoogleGenAI, Type } from "@google/genai";
 import { NotionAPI } from "notion-client";
 import { buildMultiviewPerspectivePrompt, buildFrontViewPrompt } from "./Service/MultiView/services/multiviewPrompt";
+import { buildStoryboardGeneratePrompt } from "./Service/StoryboardDirector/services/storyboardPrompt";
 
 const notionApi = new NotionAPI();
 const LABCORD_NOTION_PAGE_ID = "ae0d2817-213d-4086-9b39-de9a057e9cde";
@@ -838,22 +839,9 @@ async function startServer() {
       return res.status(400).json({ error: "이미지 데이터가 비어 있습니다." });
     }
 
-    const referenceContext = references
-      .map(
-        (ref: { color: string; type: string }) =>
-          `The area marked with ${ref.color} in the mask corresponds to ${ref.type}. Refer to the provided reference image for this object's design and identity.`,
-      )
-      .join("\n");
+    const referenceContext = references as { color: string; type: string; imageDataUrl?: string }[];
 
-    const finalPrompt = `
-    TASK: Transform this storyboard sketch into a high-quality finished cinematic image.
-    LOCATE: Maintain the composition, framing, and perspective of the original sketch.
-    ASSIGN: 
-    ${referenceContext}
-    STORY CONTEXT: ${prompt}
-    
-    The output should be a single high-fidelity image that strictly follows these layout and design constraints.
-  `;
+    const finalPrompt = buildStoryboardGeneratePrompt(prompt, referenceContext);
 
     const model =
       (process.env.STORYBOARD_IMAGE_MODEL || "").trim() || "gemini-2.5-flash-image";
