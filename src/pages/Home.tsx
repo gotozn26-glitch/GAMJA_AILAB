@@ -857,47 +857,72 @@ export default function Home() {
               <div
                 className="pointer-events-none"
                 style={{
-                  ...abs(705, 223, 771, 742),
-                  borderRadius: '50%',
-                  background:
-                    'radial-gradient(ellipse at 26% 30%, rgba(0, 0, 0, 0.38) 0%, rgba(0, 0, 0, 0.28) 34%, rgba(0, 0, 0, 0) 68%)',
-                  filter: 'blur(12px)',
-                  transform: 'rotate(16deg)',
-                  transformOrigin: 'center center',
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                  width: DESIGN_WIDTH,
+                  height: 980,
+                  isolation: 'isolate',
                 }}
-              />
-              <div
-                className="pointer-events-none"
-                style={{
-                  ...abs(744, 258, 860, 860),
-                  borderRadius: '50%',
-                  background:
-                    'radial-gradient(ellipse at 24% 26%, rgba(0, 0, 0, 0.18) 0%, rgba(0, 0, 0, 0.12) 28%, rgba(0, 0, 0, 0.05) 46%, rgba(0, 0, 0, 0) 74%)',
-                  filter: 'blur(42px)',
-                  transform: 'rotate(18deg)',
-                  transformOrigin: 'center center',
-                }}
-              />
-              <DecoVideo
-                src="/image/top-potato-transparent.webm"
-                poster="/image/top-potato-transparent.png"
-                style={{
-                  ...abs(462, 42, 980, 927),
-                  objectFit: 'contain',
-                  transform: 'scaleX(1.08)',
-                  transformOrigin: 'center center',
-                }}
-              />
-              <DecoImage
-                src={`${ASSET_BASE}/050-AI-LAB.svg`}
-                style={{
-                  ...abs(552, 486, 816, 218),
-                  filter: `blur(${aiLabBlur}px)`,
-                  transition: 'filter 2200ms ease-in-out',
-                }}
-              />
-              <DecoImage src={`${ASSET_BASE}/051-Gamjas.svg`} style={abs(864, 398, 286, 69)} />
-              <DecoImage src={`${ASSET_BASE}/052-SINCE-2026.png`} style={abs(903, 706, 175, 20)} />
+              >
+                <div
+                  className="pointer-events-none"
+                  style={{
+                    ...abs(705, 223, 771, 742),
+                    borderRadius: '50%',
+                    background:
+                      'radial-gradient(ellipse at 26% 30%, rgba(0, 0, 0, 0.38) 0%, rgba(0, 0, 0, 0.28) 34%, rgba(0, 0, 0, 0) 68%)',
+                    filter: 'blur(12px)',
+                    transform: 'rotate(16deg)',
+                    transformOrigin: 'center center',
+                    zIndex: 1,
+                  }}
+                />
+                <div
+                  className="pointer-events-none"
+                  style={{
+                    ...abs(744, 258, 860, 860),
+                    borderRadius: '50%',
+                    background:
+                      'radial-gradient(ellipse at 24% 26%, rgba(0, 0, 0, 0.18) 0%, rgba(0, 0, 0, 0.12) 28%, rgba(0, 0, 0, 0.05) 46%, rgba(0, 0, 0, 0) 74%)',
+                    filter: 'blur(42px)',
+                    transform: 'rotate(18deg)',
+                    transformOrigin: 'center center',
+                    zIndex: 1,
+                  }}
+                />
+                <DecoVideo
+                  src="/image/top-potato-transparent.webm"
+                  poster="/image/top-potato-transparent.png"
+                  style={{
+                    ...abs(462, 42, 980, 927),
+                    objectFit: 'contain',
+                    transform: 'scaleX(1.08)',
+                    transformOrigin: 'center center',
+                    zIndex: 2,
+                  }}
+                />
+                <div
+                  className="pointer-events-none"
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    zIndex: 10,
+                    transform: 'translateZ(0)',
+                  }}
+                >
+                  <DecoImage
+                    src={`${ASSET_BASE}/050-AI-LAB.svg`}
+                    style={{
+                      ...abs(552, 486, 816, 218),
+                      filter: `blur(${aiLabBlur}px)`,
+                      transition: 'filter 2200ms ease-in-out',
+                    }}
+                  />
+                  <DecoImage src={`${ASSET_BASE}/051-Gamjas.svg`} style={abs(864, 398, 286, 69)} />
+                  <DecoImage src={`${ASSET_BASE}/052-SINCE-2026.png`} style={abs(903, 706, 175, 20)} />
+                </div>
+              </div>
 
               <DecoImage src={`${ASSET_BASE}/014-2.svg`} style={abs(240, 1049, 454, 304)} />
               <DecoImage src={`${ASSET_BASE}/015-btn.svg`} style={abs(639, 1297, 38, 38)} />

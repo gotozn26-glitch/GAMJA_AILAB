@@ -1283,15 +1283,19 @@ async function startServer() {
     }),
   );
 
-  // [3순위] SPA 폴백 — 실제 정적 파일(또는 /assets/*) 요청에는 index.html을 주지 않습니다.
-  // 그렇지 않으면 누락된 JS가 HTML로 내려가 브라우저가 조용히 흰 화면만 냅니다.
+  // [3순위] SPA 폴백 — /main·/service → React 앱, / → 리뉴얼 랜딩
   app.get(/.*/, (req, res) => {
     const p = req.path;
     if (p.startsWith("/assets/") || /\.[a-zA-Z0-9]+$/.test(p)) {
       return res.status(404).type("text/plain").send("Not found");
     }
+
+    const spaShell = path.join(distPath, "main", "index.html");
+    const landingShell = path.join(distPath, "index.html");
+    const useSpa = p.startsWith("/main") || p.startsWith("/service");
+
     res.setHeader("Cache-Control", "no-cache");
-    res.sendFile(path.join(distPath, "index.html"), (err) => {
+    res.sendFile(useSpa ? spaShell : landingShell, (err) => {
       if (err) {
         res.status(404).send("Build files not found.");
       }

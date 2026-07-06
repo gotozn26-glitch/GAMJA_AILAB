@@ -21,11 +21,14 @@ export default defineConfig({
     }
   },
   build: {
-    // 빌드 결과물이 dist 폴더에 생성되도록 강제합니다.
     outDir: 'dist',
-    // 자산 파일들을 assets 폴더 안에 모읍니다.
     assetsDir: 'assets',
-    // 기존 index.html의 경로 문제를 해결하기 위해 빈 스크립트 방지 설정을 넣습니다.
     emptyOutDir: true,
-  }
+    rollupOptions: {
+      input: {
+        index: path.resolve(__dirname, 'index.html'),
+        main: path.resolve(__dirname, 'main/index.html'),
+      },
+    },
+  },
 });

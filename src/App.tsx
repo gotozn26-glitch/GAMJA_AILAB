@@ -23,7 +23,7 @@ export default function App() {
     <BrowserRouter>
       <Suspense fallback={<RouteFallback />}>
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route path="/main" element={<Home />} />
           <Route path="/service/bongjoonho" element={<BongJoonHoPage />} />
           <Route path="/service/chair-swap/*" element={<ChairSwapPage />} />
           <Route path="/service/multiview" element={<MultiViewPage />} />
@@ -31,7 +31,7 @@ export default function App() {
           <Route path="/service/creator-object" element={<CreatorObjectPage />} />
           <Route path="/service/logo-maker" element={<LogoMakerPage />} />
           <Route path="/service/upscaler" element={<UpscalerPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/main" replace />} />
         </Routes>
       </Suspense>
     </BrowserRouter>
