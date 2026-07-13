@@ -1,4 +1,4 @@
-import express, { type Response } from "express";
+import express, { type Request, type Response } from "express";
 import path from "path";
 import { GoogleGenAI, Type } from "@google/genai";
 import { NotionAPI } from "notion-client";
@@ -234,20 +234,44 @@ function sanitizeEnvValue(value: string): string {
     .replace(/^'|'$/g, "");
 }
 
-function getGeminiApiKey(): string {
-  return sanitizeEnvValue(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "");
+/** 클라이언트가 세션에만 보관한 키(헤더). 서버/디스크에는 저장하지 않습니다. */
+function headerApiKey(req: Request | undefined, names: string[]): string {
+  if (!req) return "";
+  for (const name of names) {
+    const value = req.headers[name.toLowerCase()];
+    if (typeof value === "string" && value.trim()) {
+      return sanitizeEnvValue(value);
+    }
+  }
+  return "";
 }
 
-function getYoungGeminiApiKey(): string {
-  return sanitizeEnvValue(process.env.YOUNG_GEMINI_API_KEY || "");
+function getGeminiApiKey(req?: Request): string {
+  return (
+    headerApiKey(req, ["x-google-api-key", "x-gemini-api-key"]) ||
+    sanitizeEnvValue(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "")
+  );
 }
 
-function getChaeGeminiApiKey(): string {
-  return sanitizeEnvValue(process.env.CHAE_GEMINI_API_KEY || "");
+function getYoungGeminiApiKey(req?: Request): string {
+  return (
+    headerApiKey(req, ["x-google-api-key", "x-gemini-api-key"]) ||
+    sanitizeEnvValue(process.env.YOUNG_GEMINI_API_KEY || "")
+  );
 }
 
-function getChaeGptApiKey(): string {
-  return sanitizeEnvValue(process.env.CHAE_GPT_API_KEY || "");
+function getChaeGeminiApiKey(req?: Request): string {
+  return (
+    headerApiKey(req, ["x-google-api-key", "x-gemini-api-key"]) ||
+    sanitizeEnvValue(process.env.CHAE_GEMINI_API_KEY || "")
+  );
+}
+
+function getChaeGptApiKey(req?: Request): string {
+  return (
+    headerApiKey(req, ["x-openai-api-key"]) ||
+    sanitizeEnvValue(process.env.CHAE_GPT_API_KEY || "")
+  );
 }
 
 /** Cloud CDN cache hit을 위해 정적 자산별 Cache-Control을 설정합니다. */
@@ -413,7 +437,7 @@ async function startServer() {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    const apiKey = getGeminiApiKey();
+    const apiKey = getGeminiApiKey(req);
     if (!apiKey) {
       return res.status(500).json({ error: "GEMINI_API_KEY(or GOOGLE_API_KEY) is not configured on the server." });
     }
@@ -501,7 +525,7 @@ async function startServer() {
       return res.status(400).json({ error: "요청 형식이 올바르지 않습니다." });
     }
 
-    const apiKey = getGeminiApiKey();
+    const apiKey = getGeminiApiKey(req);
     if (!apiKey) {
       return res.status(500).json({ error: "서버에 GEMINI_API_KEY(또는 GOOGLE_API_KEY)가 설정되어 있지 않습니다." });
     }
@@ -567,7 +591,7 @@ async function startServer() {
       return res.status(400).json({ error: "요청 형식이 올바르지 않습니다." });
     }
 
-    const apiKey = getGeminiApiKey();
+    const apiKey = getGeminiApiKey(req);
     if (!apiKey) {
       return res.status(500).json({ error: "서버에 GEMINI_API_KEY(또는 GOOGLE_API_KEY)가 설정되어 있지 않습니다." });
     }
@@ -621,7 +645,7 @@ async function startServer() {
       return res.status(400).json({ error: "요청 형식이 올바르지 않습니다." });
     }
 
-    const apiKey = getGeminiApiKey();
+    const apiKey = getGeminiApiKey(req);
     if (!apiKey) {
       return res.status(500).json({ error: "서버에 GEMINI_API_KEY(또는 GOOGLE_API_KEY)가 설정되어 있지 않습니다." });
     }
@@ -692,7 +716,7 @@ async function startServer() {
       return res.status(400).json({ error: "요청 형식이 올바르지 않습니다." });
     }
 
-    const apiKey = getGeminiApiKey();
+    const apiKey = getGeminiApiKey(req);
     if (!apiKey) {
       return res.status(500).json({ error: "서버에 GEMINI_API_KEY(또는 GOOGLE_API_KEY)가 설정되어 있지 않습니다." });
     }
@@ -747,7 +771,7 @@ async function startServer() {
       return res.status(400).json({ error: "요청 형식이 올바르지 않습니다." });
     }
 
-    const apiKey = getGeminiApiKey();
+    const apiKey = getGeminiApiKey(req);
     if (!apiKey) {
       return res.status(500).json({ error: "서버에 GEMINI_API_KEY(또는 GOOGLE_API_KEY)가 설정되어 있지 않습니다." });
     }
@@ -828,7 +852,7 @@ async function startServer() {
       return res.status(400).json({ error: "요청 형식이 올바르지 않습니다." });
     }
 
-    const apiKey = getGeminiApiKey();
+    const apiKey = getGeminiApiKey(req);
     if (!apiKey) {
       return res.status(500).json({ error: "서버에 GEMINI_API_KEY(또는 GOOGLE_API_KEY)가 설정되어 있지 않습니다." });
     }
@@ -905,7 +929,7 @@ async function startServer() {
       return res.status(400).json({ error: "요청 형식이 올바르지 않습니다." });
     }
 
-    const apiKey = getYoungGeminiApiKey();
+    const apiKey = getYoungGeminiApiKey(req);
     if (!apiKey) {
       return res.status(500).json({
         error: "서버에 YOUNG_GEMINI_API_KEY가 설정되어 있지 않습니다.",
@@ -978,7 +1002,7 @@ async function startServer() {
       return res.status(400).json({ error: "요청 형식이 올바르지 않습니다." });
     }
 
-    const apiKey = getYoungGeminiApiKey();
+    const apiKey = getYoungGeminiApiKey(req);
     if (!apiKey) {
       return res.status(500).json({
         error: "서버에 YOUNG_GEMINI_API_KEY가 설정되어 있지 않습니다.",
@@ -1061,7 +1085,7 @@ async function startServer() {
       return res.status(400).json({ error: "요청 형식이 올바르지 않습니다." });
     }
 
-    const apiKey = getYoungGeminiApiKey();
+    const apiKey = getYoungGeminiApiKey(req);
     if (!apiKey) {
       return res.status(500).json({
         error: "서버에 YOUNG_GEMINI_API_KEY가 설정되어 있지 않습니다.",
@@ -1154,7 +1178,7 @@ async function startServer() {
   app.post("/api/upscaler/gemini", async (req, res) => {
     try {
       const { base64, imageSize, prompt, model } = req.body ?? {};
-      const apiKey = getChaeGeminiApiKey();
+      const apiKey = getChaeGeminiApiKey(req);
       if (!apiKey) {
         return res.status(500).json({ error: "CHAE_GEMINI_API_KEY가 설정되어 있지 않습니다." });
       }
@@ -1205,7 +1229,7 @@ async function startServer() {
     const started = Date.now();
     try {
       const { base64, outputSize, prompt, quality, model } = req.body ?? {};
-      const apiKey = getChaeGptApiKey();
+      const apiKey = getChaeGptApiKey(req);
       if (!apiKey) {
         return res.status(500).json({ error: "CHAE_GPT_API_KEY가 설정되어 있지 않습니다." });
       }

@@ -97,10 +97,24 @@ const aspectRatioToSize: Record<DesignConfig["aspectRatio"], string> = {
 const normalizeEnvValue = (value?: string) =>
   (value || "").trim().replace(/^"|"$/g, "").replace(/^'|'$/g, "");
 
+const readSessionOpenAiKey = (): string => {
+  try {
+    const raw = sessionStorage.getItem("gamja.apiKeys.session");
+    if (!raw) return "";
+    const parsed = JSON.parse(raw) as { openai?: string };
+    return normalizeEnvValue(parsed.openai);
+  } catch {
+    return "";
+  }
+};
+
 const getClient = () => {
-  const apiKey = normalizeEnvValue(import.meta.env.CHAE_GPT_API_KEY);
+  const apiKey =
+    readSessionOpenAiKey() || normalizeEnvValue(import.meta.env.CHAE_GPT_API_KEY);
   if (!apiKey) {
-    throw new Error("CHAE_GPT_API_KEY is missing. Set it in .env.local (see vite envPrefix).");
+    throw new Error(
+      "OpenAI API Key가 없습니다. 메인에서 OpenAI API Key를 입력하거나, CHAE_GPT_API_KEY를 설정해 주세요.",
+    );
   }
 
   return new OpenAI({

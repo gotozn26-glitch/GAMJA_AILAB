@@ -1,9 +1,12 @@
+import ServiceShell from '../components/renewal/ServiceShell';
 import BongJoonHoApp from '../../Service/BongJoonHo/App';
 
 export default function BongJoonHoPage() {
   return (
-    <div className="gamja-bong min-h-screen overflow-hidden">
-      <BongJoonHoApp />
-    </div>
+    <ServiceShell>
+      <div className="gamja-bong min-h-screen overflow-hidden">
+        <BongJoonHoApp />
+      </div>
+    </ServiceShell>
   );
 }
