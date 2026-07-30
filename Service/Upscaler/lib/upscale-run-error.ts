@@ -92,15 +92,23 @@ export const parseUpscaleRunError = (
       };
     }
 
-    if (err.message.includes('CHAE_GPT_API_KEY') || err.message.includes('CHAE_GEMINI_API_KEY')) {
-      const isGemini = err.message.includes('CHAE_GEMINI_API_KEY');
-      const keyName = isGemini ? 'CHAE_GEMINI_API_KEY' : 'CHAE_GPT_API_KEY';
+    if (
+      err.message.includes('CHAE_GPT_API_KEY') ||
+      err.message.includes('CHAE_GEMINI_API_KEY') ||
+      err.message.includes('Google API Key가 없습니다') ||
+      err.message.includes('OpenAI API Key가 없습니다')
+    ) {
+      const isGemini =
+        err.message.includes('CHAE_GEMINI_API_KEY') ||
+        err.message.includes('Google API Key');
       return {
         ...base,
         type: 'missing_api_key',
-        title: isGemini ? 'Gemini API 키 없음' : 'OpenAI API 키 없음',
-        message: `${keyName}가 설정되지 않았습니다.`,
-        hint: `.env.local 또는 서버 환경변수에 ${keyName}를 추가한 뒤 서버를 재시작해 주세요.`,
+        title: isGemini ? 'Google API 키 없음' : 'OpenAI API 키 없음',
+        message: isGemini
+          ? 'Google API Key가 등록되어 있지 않습니다.'
+          : 'OpenAI API Key가 등록되어 있지 않습니다.',
+        hint: '메인 화면에서 API Key를 등록한 뒤 다시 시도해 주세요.',
         category: 'invalid_api_key',
         isBillingWarning: false,
       };

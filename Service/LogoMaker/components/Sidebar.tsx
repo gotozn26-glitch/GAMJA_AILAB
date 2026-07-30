@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AspectRatio, DesignConfig } from '../types';
+import ServiceBackButton from '../../../src/components/renewal/ServiceBackButton';
 
 interface SidebarProps {
   config: DesignConfig;
@@ -328,7 +329,10 @@ const Sidebar: React.FC<SidebarProps> = ({ config, setConfig }) => {
     <>
       <aside className="z-20 flex h-full min-h-0 w-80 shrink-0 flex-col border-r border-gray-100 bg-white">
         <div className="p-10 pb-6">
-          <h1 className="text-xl font-bold tracking-tighter text-gray-900">로고작업실</h1>
+          <div className="flex items-center gap-3">
+            <ServiceBackButton variant="logo" />
+            <h1 className="text-xl font-bold tracking-tighter text-gray-900">로고작업실</h1>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar px-8 py-4 space-y-10">

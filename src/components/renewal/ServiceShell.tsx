@@ -1,9 +1,14 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import ApiKeyModal from './ApiKeyModal';
-import ServiceMenuToggle from './ServiceMenuToggle';
-import { hasGoogleApiKey, installApiKeyFetchInterceptor } from '../../lib/apiKeys';
-import { serviceIdFromPath, type ServiceDef } from '../../lib/services';
+import {
+  hasAnyApiKey,
+  INVALID_API_KEY_BANNER,
+  installApiKeyFetchInterceptor,
+  subscribeApiKeys,
+  subscribeInvalidApiKey,
+} from '../../lib/apiKeys';
+import { DESIGN_BASE_WIDTH, useViewportScale } from '../../hooks/useViewportScale';
 
 type Props = {
   children: ReactNode;
@@ -11,71 +16,96 @@ type Props = {
 
 /**
  * 서비스 화면 공통 셸:
- * - 햄버거 / 세로 토글 메뉴
  * - sessionStorage API 키를 /api 요청에 자동 주입
- * - Google 키 없으면 입력 모달 강제
+ * - 키가 없으면 메인과 동일한 API Key 팝업 표시
+ * - 키가 무효(401)면 팝업을 다시 띄우고 상단 안내 표시
+ * - 좁은 뷰포트에서 서비스 본문을 비율 축소
  */
 export default function ServiceShell({ children }: Props) {
   const location = useLocation();
   const navigate = useNavigate();
-  const activeId = serviceIdFromPath(location.pathname);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [apiModalOpen, setApiModalOpen] = useState(false);
-  const [pendingService, setPendingService] = useState<ServiceDef | null>(null);
+  const { scale, width } = useViewportScale(DESIGN_BASE_WIDTH);
+  const [apiModalOpen, setApiModalOpen] = useState(() => !hasAnyApiKey());
+  const [apiKeyError, setApiKeyError] = useState<string | null>(null);
 
   useEffect(() => {
     return installApiKeyFetchInterceptor();
   }, []);
 
   useEffect(() => {
-    if (!hasGoogleApiKey()) {
+    // 서비스 진입/이동 시 키가 없으면 팝업
+    if (!hasAnyApiKey()) {
+      setApiKeyError(null);
       setApiModalOpen(true);
     }
   }, [location.pathname]);
 
-  const handleSelectService = (service: ServiceDef) => {
-    if (!hasGoogleApiKey()) {
-      setPendingService(service);
-      setApiModalOpen(true);
-      return;
-    }
+  useEffect(() => {
+    return subscribeApiKeys((keys) => {
+      if (keys.google || keys.openai) {
+        // 무효 키로 팝업이 떠 있는 동안에는 기존 키 때문에 닫지 않음
+        if (!apiKeyError) {
+          setApiModalOpen(false);
+        }
+      }
+    });
+  }, [apiKeyError]);
 
-    setMenuOpen(false);
-    if (service.id !== activeId) {
-      navigate(service.route);
+  useEffect(() => {
+    return subscribeInvalidApiKey(() => {
+      setApiKeyError(INVALID_API_KEY_BANNER);
+      setApiModalOpen(true);
+    });
+  }, []);
+
+  const handleApiModalClose = () => {
+    setApiModalOpen(false);
+    setApiKeyError(null);
+    // 키 없이 닫으면 서비스에 머물 수 없으므로 메인으로 이동
+    if (!hasAnyApiKey()) {
+      navigate('/');
     }
   };
 
-  return (
-    <div className="relative min-h-screen">
-      <ServiceMenuToggle
-        open={menuOpen}
-        activeId={activeId}
-        onToggle={() => setMenuOpen((prev) => !prev)}
-        onSelectService={handleSelectService}
-      />
+  const needsStrongScale =
+    location.pathname.startsWith('/service/creator-object') ||
+    location.pathname.startsWith('/service/storyboard-director') ||
+    location.pathname.startsWith('/service/bongjoonho') ||
+    location.pathname.startsWith('/service/logo-maker') ||
+    location.pathname.startsWith('/service/multiview');
 
-      {children}
+  const contentScale =
+    width >= DESIGN_BASE_WIDTH
+      ? 1
+      : needsStrongScale
+        ? Math.max(0.45, scale)
+        : Math.max(0.7, Math.min(1, scale + 0.15));
+
+  const useZoom = contentScale < 0.999;
+
+  const stageStyle: CSSProperties | undefined = useZoom
+    ? {
+        width: `${100 / contentScale}%`,
+        minHeight: `${100 / contentScale}dvh`,
+        transform: `scale(${contentScale})`,
+        transformOrigin: 'top left',
+      }
+    : undefined;
+
+  return (
+    <div className="relative min-h-dvh w-full overflow-x-hidden">
+      <div className="gamja-service-stage min-h-dvh w-full" style={stageStyle}>
+        {children}
+      </div>
 
       <ApiKeyModal
         open={apiModalOpen}
-        onClose={() => {
-          setApiModalOpen(false);
-          setPendingService(null);
-          if (!hasGoogleApiKey()) {
-            navigate('/main', { replace: true });
-          }
-        }}
-        onRegistered={() => {
-          if (!hasGoogleApiKey()) return;
-          setApiModalOpen(false);
-          if (pendingService) {
-            const next = pendingService;
-            setPendingService(null);
-            setMenuOpen(false);
-            if (next.route !== location.pathname) {
-              navigate(next.route);
-            }
+        errorBanner={apiKeyError}
+        onClose={handleApiModalClose}
+        onRegistered={(keys) => {
+          if (keys.google || keys.openai) {
+            setApiKeyError(null);
+            setApiModalOpen(false);
           }
         }}
       />

@@ -1,18 +1,20 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { SummaryScreen } from './components/SummaryScreen';
 import { ImageMatchScreen } from './components/ImageMatchScreen';
 import { LoadingScreen } from './components/LoadingScreen';
+import ServiceBackButton from '../../src/components/renewal/ServiceBackButton';
 
 const BASE_ROUTE = '/service/chair-swap';
 
 function NavHeader() {
-  const navigate = useNavigate();
-
   return (
-    <header className="w-full bg-background-light pt-8 pb-4">
+    <header className="relative w-full bg-background-light pt-8 pb-4">
+      <div className="absolute left-6 top-8 z-10 md:left-10">
+        <ServiceBackButton variant="chair" />
+      </div>
       <div className="mx-auto flex max-w-[1280px] flex-col items-center px-6 md:px-10">
-        <div className="group mb-6 flex cursor-pointer items-center gap-3" onClick={() => navigate('/')}>
-          <div className="flex size-10 items-center justify-center rounded-xl bg-primary text-white shadow-lg shadow-primary/20 transition-transform group-hover:scale-110">
+        <div className="mb-6 flex items-center gap-3">
+          <div className="flex size-10 items-center justify-center rounded-xl bg-primary text-white shadow-lg shadow-primary/20">
             <span className="material-symbols-outlined text-2xl font-bold">chair</span>
           </div>
           <h1 className="text-3xl font-black tracking-tighter text-text-main">의자뺏기</h1>

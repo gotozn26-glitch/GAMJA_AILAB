@@ -304,3 +304,26 @@ body {
 .gamja-chair .animate-shimmer {
   animation: gamja-chair-shimmer 1.5s infinite;
 }
+
+/* 전역 반응형: 서비스 스테이지 + 좁은 화면 가로 스크롤 방지 */
+html,
+body,
+#root {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+.gamja-service-stage {
+  max-width: none;
+}
+
+@media (max-width: 900px) {
+  .gamja-creator .flex.flex-1.overflow-hidden {
+    flex-direction: column;
+  }
+
+  .gamja-bong.flex,
+  .gamja-bong > .flex.h-screen {
+    flex-direction: column;
+  }
+}

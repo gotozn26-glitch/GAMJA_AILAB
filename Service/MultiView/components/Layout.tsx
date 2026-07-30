@@ -1,5 +1,6 @@
 
 import React from 'react';
+import ServiceBackButton from '../../../src/components/renewal/ServiceBackButton';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
@@ -9,7 +10,10 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         LastUpdate 26.01.14
       </div>
 
-      <header className="w-full flex flex-col items-center pt-16 pb-12 gap-1 text-center">
+      <header className="relative w-full flex flex-col items-center pt-16 pb-12 gap-1 text-center">
+        <div className="absolute left-6 top-8 sm:left-8 sm:top-10">
+          <ServiceBackButton variant="multiview" />
+        </div>
         <div className="flex items-center gap-3">
           <span className="text-5xl">🥔</span>
           <h1 className="text-gray-900 text-5xl font-black tracking-tighter">

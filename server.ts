@@ -246,33 +246,30 @@ function headerApiKey(req: Request | undefined, names: string[]): string {
   return "";
 }
 
+/** 브라우저 세션에 등록된 Google/Gemini 키만 사용 (환경변수 폴백 없음) */
 function getGeminiApiKey(req?: Request): string {
-  return (
-    headerApiKey(req, ["x-google-api-key", "x-gemini-api-key"]) ||
-    sanitizeEnvValue(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "")
-  );
+  return headerApiKey(req, ["x-google-api-key", "x-gemini-api-key"]);
 }
 
 function getYoungGeminiApiKey(req?: Request): string {
-  return (
-    headerApiKey(req, ["x-google-api-key", "x-gemini-api-key"]) ||
-    sanitizeEnvValue(process.env.YOUNG_GEMINI_API_KEY || "")
-  );
+  return getGeminiApiKey(req);
 }
 
 function getChaeGeminiApiKey(req?: Request): string {
-  return (
-    headerApiKey(req, ["x-google-api-key", "x-gemini-api-key"]) ||
-    sanitizeEnvValue(process.env.CHAE_GEMINI_API_KEY || "")
-  );
+  return getGeminiApiKey(req);
 }
 
+/** 브라우저 세션에 등록된 OpenAI 키만 사용 (환경변수 폴백 없음) */
 function getChaeGptApiKey(req?: Request): string {
-  return (
-    headerApiKey(req, ["x-openai-api-key"]) ||
-    sanitizeEnvValue(process.env.CHAE_GPT_API_KEY || "")
-  );
+  return headerApiKey(req, ["x-openai-api-key"]);
 }
+
+const MISSING_GOOGLE_KEY =
+  "Google API Key가 없습니다. 메인 화면에서 API Key를 등록해 주세요.";
+const INVALID_GOOGLE_KEY =
+  "Google API Key가 유효하지 않습니다. 메인 화면에서 키를 다시 등록해 주세요.";
+const MISSING_OPENAI_KEY =
+  "OpenAI API Key가 없습니다. 메인 화면에서 API Key를 등록해 주세요.";
 
 /** Cloud CDN cache hit을 위해 정적 자산별 Cache-Control을 설정합니다. */
 function applyStaticCacheHeaders(res: Response, filePath: string) {
@@ -429,6 +426,136 @@ async function startServer() {
     }
   });
 
+  /** 브라우저 등록용 — Google / OpenAI 키 유효성만 가볍게 확인 (저장하지 않음) */
+  app.post("/api/keys/validate", async (req, res) => {
+    const body = req.body ?? {};
+    const google = sanitizeEnvValue(
+      typeof body.google === "string"
+        ? body.google
+        : headerApiKey(req, ["x-google-api-key", "x-gemini-api-key"]),
+    );
+    const openai = sanitizeEnvValue(
+      typeof body.openai === "string"
+        ? body.openai
+        : headerApiKey(req, ["x-openai-api-key"]),
+    );
+
+    if (!google && !openai) {
+      return res.status(400).json({
+        ok: false,
+        message: "검증할 API Key를 입력해 주세요.",
+      });
+    }
+
+    const result: {
+      ok: boolean;
+      message: string;
+      google?: { ok: boolean; message?: string };
+      openai?: { ok: boolean; message?: string };
+    } = { ok: true, message: "" };
+
+    const toKoreanGoogleError = async (response: globalThis.Response) => {
+      let detail = "";
+      try {
+        const data = await response.json();
+        detail = String(data?.error?.message || data?.error?.status || "");
+      } catch {
+        detail = "";
+      }
+      const blob = `${detail} ${response.status}`.toLowerCase();
+      if (response.status === 400 || response.status === 401 || /api.?key|invalid|permission/i.test(blob)) {
+        return "Google API Key가 유효하지 않습니다. 키를 다시 확인해 주세요.";
+      }
+      if (response.status === 403) {
+        return "이 Google API Key로는 사용할 수 없습니다. 권한·프로젝트를 확인해 주세요.";
+      }
+      if (response.status === 429) {
+        return "Google API 할당량이 초과되었습니다. 잠시 후 다시 시도해 주세요.";
+      }
+      return detail
+        ? `Google API Key 검증에 실패했습니다. (${detail})`
+        : "Google API Key 검증에 실패했습니다.";
+    };
+
+    const toKoreanOpenAiError = async (response: globalThis.Response) => {
+      let detail = "";
+      let code = "";
+      try {
+        const data = await response.json();
+        detail = String(data?.error?.message || "");
+        code = String(data?.error?.code || "");
+      } catch {
+        detail = "";
+      }
+      const blob = `${code} ${detail}`.toLowerCase();
+      if (
+        response.status === 401 ||
+        code === "invalid_api_key" ||
+        /invalid.?api.?key|incorrect api key/i.test(blob)
+      ) {
+        return "OpenAI API Key가 유효하지 않습니다. 키를 다시 확인해 주세요.";
+      }
+      if (response.status === 403) {
+        return "이 OpenAI API Key로는 사용할 수 없습니다. 권한을 확인해 주세요.";
+      }
+      if (response.status === 429) {
+        return "OpenAI API 요청 한도 또는 잔액이 부족합니다.";
+      }
+      return detail
+        ? `OpenAI API Key 검증에 실패했습니다. (${detail})`
+        : "OpenAI API Key 검증에 실패했습니다.";
+    };
+
+    if (google) {
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models?pageSize=1&key=${encodeURIComponent(google)}`,
+        );
+        if (!response.ok) {
+          result.ok = false;
+          result.google = { ok: false, message: await toKoreanGoogleError(response) };
+        } else {
+          result.google = { ok: true };
+        }
+      } catch {
+        result.ok = false;
+        result.google = {
+          ok: false,
+          message: "Google API Key 검증 중 네트워크 오류가 발생했습니다.",
+        };
+      }
+    }
+
+    if (openai) {
+      try {
+        const response = await fetch("https://api.openai.com/v1/models", {
+          headers: { Authorization: `Bearer ${openai}` },
+        });
+        if (!response.ok) {
+          result.ok = false;
+          result.openai = { ok: false, message: await toKoreanOpenAiError(response) };
+        } else {
+          result.openai = { ok: true };
+        }
+      } catch {
+        result.ok = false;
+        result.openai = {
+          ok: false,
+          message: "OpenAI API Key 검증 중 네트워크 오류가 발생했습니다.",
+        };
+      }
+    }
+
+    if (!result.ok) {
+      const parts = [result.google?.message, result.openai?.message].filter(Boolean);
+      result.message = parts.join(" ") || "API Key 검증에 실패했습니다. 다시 등록해 주세요.";
+    } else {
+      result.message = "API Key 검증에 성공했습니다.";
+    }
+
+    return res.json(result);
+  });
+
   // [1순위] Gemini API Proxy Route (감자님의 소중한 로직)
   app.post("/api/generate", async (req, res) => {
     const { keyword, styleSuffix, referenceImageBase64, variationIndex } = req.body;
@@ -439,7 +566,7 @@ async function startServer() {
 
     const apiKey = getGeminiApiKey(req);
     if (!apiKey) {
-      return res.status(500).json({ error: "GEMINI_API_KEY(or GOOGLE_API_KEY) is not configured on the server." });
+      return res.status(401).json({ error: MISSING_GOOGLE_KEY });
     }
 
     const ai = new GoogleGenAI({ apiKey });
@@ -450,11 +577,13 @@ async function startServer() {
         model: 'gemini-3-flash-preview',
         contents: `You are a creative prompt engineer for an AI image generator.
         Translate the Korean word "${keyword}" into a cute, toy-like English visual description.
+        
         Strict Rules:
         1. If the word is "주사위" or relates to "Dice", translate it as "a cute decorative toy cube with soft rounded edges". NEVER use the word 'dice' or 'gambling'.
         2. Describe the object as a simplified, chunky, and adorable miniature toy version.
-        3. Focus on "kawaii" proportions.
-        4. Output ONLY the English description.`,
+        3. Focus on "kawaii" proportions: oversized features, soft rounded silhouettes, and a charming toy-like structure.
+        4. Do NOT include color words in the translation unless essential.
+        5. Output ONLY the English description.`,
       });
       
       const safeVisualDescription = translationResponse.text?.trim().replace(/["'.]/g, '') || keyword;
@@ -469,9 +598,17 @@ async function startServer() {
 
       const fullPrompt = `A high-quality 3D digital asset of a charming miniature toy version of ${safeVisualDescription}.
       Style & Material: ${styleSuffix}. 
-      Background: ESSENTIAL - Solid, pure, clean flat WHITE background. NO shadows on the floor, NO horizon line.
-      Detail: Focus intensely on the tactile surface qualities (fabric, glass, or clay textures).
-      Composition: ${selectedView}, perfectly centered.`;
+      Background: ESSENTIAL - Solid, pure, clean flat WHITE background. NO shadows on the floor, NO horizon line, just the object isolated on WHITE.
+      Color Guidance: ALWAYS prioritize a high-lightness, bright pastel color palette across all styles. Except for Glass & Hologram style, reflect and incorporate the natural, iconic, or culturally signature colors associated with "${keyword}" (e.g. green/red/gold for a Christmas tree, yellow for a banana) re-interpreted in clean, high-brightness, soft pastel hues so the object's identity is clearly preserved without dark or murky tones.
+      Detail: Focus intensely on the tactile surface qualities. 
+      If fabric/knitted, make sure to use high-lightness bright pastel wool yarns (focused on 1 to 2 main harmonious pastel color families suited for the object's signature look, avoiding plain all-white yarn and strictly avoiding 3+ chaotic colors), detailed crochet stitches, and amigurumi knit patterns clearly like a real handmade doll.
+      If modern 3D, render a sleek digital 3D style using smooth precision-chamfered plastic with a soft satin sheen and subtle glossy reflections, crisp geometric contours with ZERO handmade imperfections, and a clean minimalist high-lightness bright pastel color palette respecting the object's iconic colors.
+      If 3D clay, show rich organic stop-motion claymation details: visible subtle thumbprints, clay dough seams, and handcrafted plasticine texture in bright pastel shades reflecting the object's signature colors.
+      If glass, show high transparency and light refraction with a subtle shimmering iridescent rainbow hologram sheen, combined with 1 gentle pastel color tint (strictly avoiding dark purple/amethyst dominance). 
+      Form: Chunky, simplified, rounded "kawaii" designer toy silhouette.
+      Lighting: Soft studio lighting with crisp highlight reflections that enhance the material's texture without casting heavy dark shadows.
+      Composition: ${selectedView}, perfectly centered.
+      Prohibited: NO text, NO labels, NO people, NO realistic skin, NO photographic noise, NO background elements.`;
 
       const parts: any[] = [{ text: fullPrompt }];
       
@@ -504,7 +641,7 @@ async function startServer() {
       console.error("Gemini Server Error:", error);
       const message = String(error?.message || "");
       if (message.includes("API key not valid") || message.includes("API_KEY_INVALID")) {
-        return res.status(401).json({ error: "Gemini API 키가 유효하지 않습니다. Firebase 환경변수(GEMINI_API_KEY 또는 GOOGLE_API_KEY)를 다시 확인해 주세요." });
+        return res.status(401).json({ error: INVALID_GOOGLE_KEY, code: "INVALID_API_KEY" });
       }
       if (
         message.includes("429") ||
@@ -518,7 +655,7 @@ async function startServer() {
     }
   });
 
-  /** Rotation(MultiView) — 클라이언트에 API 키를 두지 않고 서버에서만 Gemini 호출 */
+  /** Rotation(MultiView) — 브라우저 세션 키(헤더)로 서버에서 Gemini 호출 */
   app.post("/api/multiview/analyze", async (req, res) => {
     const { sourceDataUrl, objectName } = req.body || {};
     if (!sourceDataUrl || typeof objectName !== "string") {
@@ -527,7 +664,7 @@ async function startServer() {
 
     const apiKey = getGeminiApiKey(req);
     if (!apiKey) {
-      return res.status(500).json({ error: "서버에 GEMINI_API_KEY(또는 GOOGLE_API_KEY)가 설정되어 있지 않습니다." });
+      return res.status(401).json({ error: MISSING_GOOGLE_KEY });
     }
 
     const src = decodeDataUrl(sourceDataUrl);
@@ -579,7 +716,7 @@ async function startServer() {
       console.error("Multiview analyze error:", error);
       const message = String(error?.message || "");
       if (message.includes("API key not valid") || message.includes("API_KEY_INVALID")) {
-        return res.status(401).json({ error: "Gemini API 키가 유효하지 않습니다." });
+        return res.status(401).json({ error: INVALID_GOOGLE_KEY, code: "INVALID_API_KEY" });
       }
       res.status(500).json({ error: message || "정면 분석에 실패했습니다." });
     }
@@ -593,7 +730,7 @@ async function startServer() {
 
     const apiKey = getGeminiApiKey(req);
     if (!apiKey) {
-      return res.status(500).json({ error: "서버에 GEMINI_API_KEY(또는 GOOGLE_API_KEY)가 설정되어 있지 않습니다." });
+      return res.status(401).json({ error: MISSING_GOOGLE_KEY });
     }
 
     const src = decodeDataUrl(sourceDataUrl);
@@ -632,7 +769,7 @@ async function startServer() {
       console.error("Multiview front-view error:", error);
       const message = String(error?.message || "");
       if (message.includes("API key not valid") || message.includes("API_KEY_INVALID")) {
-        return res.status(401).json({ error: "Gemini API 키가 유효하지 않습니다." });
+        return res.status(401).json({ error: INVALID_GOOGLE_KEY, code: "INVALID_API_KEY" });
       }
       res.status(500).json({ error: message || "정면 이미지 생성에 실패했습니다." });
     }
@@ -647,7 +784,7 @@ async function startServer() {
 
     const apiKey = getGeminiApiKey(req);
     if (!apiKey) {
-      return res.status(500).json({ error: "서버에 GEMINI_API_KEY(또는 GOOGLE_API_KEY)가 설정되어 있지 않습니다." });
+      return res.status(401).json({ error: MISSING_GOOGLE_KEY });
     }
 
     const front = decodeDataUrl(frontUrl);
@@ -704,7 +841,7 @@ async function startServer() {
       console.error("Multiview generate error:", error);
       const message = String(error?.message || "");
       if (message.includes("API key not valid") || message.includes("API_KEY_INVALID")) {
-        return res.status(401).json({ error: "Gemini API 키가 유효하지 않습니다." });
+        return res.status(401).json({ error: INVALID_GOOGLE_KEY, code: "INVALID_API_KEY" });
       }
       res.status(500).json({ error: message || "생성에 실패했습니다." });
     }
@@ -718,7 +855,7 @@ async function startServer() {
 
     const apiKey = getGeminiApiKey(req);
     if (!apiKey) {
-      return res.status(500).json({ error: "서버에 GEMINI_API_KEY(또는 GOOGLE_API_KEY)가 설정되어 있지 않습니다." });
+      return res.status(401).json({ error: MISSING_GOOGLE_KEY });
     }
 
     const img = decodeDataUrl(imageDataUrl);
@@ -758,7 +895,7 @@ async function startServer() {
       console.error("Multiview edit error:", error);
       const message = String(error?.message || "");
       if (message.includes("API key not valid") || message.includes("API_KEY_INVALID")) {
-        return res.status(401).json({ error: "Gemini API 키가 유효하지 않습니다." });
+        return res.status(401).json({ error: INVALID_GOOGLE_KEY, code: "INVALID_API_KEY" });
       }
       res.status(500).json({ error: message || "편집에 실패했습니다." });
     }
@@ -773,7 +910,7 @@ async function startServer() {
 
     const apiKey = getGeminiApiKey(req);
     if (!apiKey) {
-      return res.status(500).json({ error: "서버에 GEMINI_API_KEY(또는 GOOGLE_API_KEY)가 설정되어 있지 않습니다." });
+      return res.status(401).json({ error: MISSING_GOOGLE_KEY });
     }
 
     const img = decodeDataUrl(imageDataUrl);
@@ -840,7 +977,7 @@ async function startServer() {
       console.error("Storyboard analyze error:", error);
       const message = String(error?.message || "");
       if (message.includes("API key not valid") || message.includes("API_KEY_INVALID")) {
-        return res.status(401).json({ error: "Gemini API 키가 유효하지 않습니다." });
+        return res.status(401).json({ error: INVALID_GOOGLE_KEY, code: "INVALID_API_KEY" });
       }
       res.status(500).json({ error: message || "분석에 실패했습니다." });
     }
@@ -854,7 +991,7 @@ async function startServer() {
 
     const apiKey = getGeminiApiKey(req);
     if (!apiKey) {
-      return res.status(500).json({ error: "서버에 GEMINI_API_KEY(또는 GOOGLE_API_KEY)가 설정되어 있지 않습니다." });
+      return res.status(401).json({ error: MISSING_GOOGLE_KEY });
     }
 
     const base = decodeDataUrl(baseDataUrl);
@@ -913,7 +1050,7 @@ async function startServer() {
       console.error("Storyboard generate error:", error);
       const message = String(error?.message || "");
       if (message.includes("API key not valid") || message.includes("API_KEY_INVALID")) {
-        return res.status(401).json({ error: "Gemini API 키가 유효하지 않습니다." });
+        return res.status(401).json({ error: INVALID_GOOGLE_KEY, code: "INVALID_API_KEY" });
       }
       res.status(500).json({ error: message || "생성에 실패했습니다." });
     }
@@ -931,8 +1068,8 @@ async function startServer() {
 
     const apiKey = getYoungGeminiApiKey(req);
     if (!apiKey) {
-      return res.status(500).json({
-        error: "서버에 YOUNG_GEMINI_API_KEY가 설정되어 있지 않습니다.",
+      return res.status(401).json({
+        error: MISSING_GOOGLE_KEY,
       });
     }
 
@@ -985,7 +1122,7 @@ async function startServer() {
       console.error("Bongjoonho analyze error:", error);
       const message = String(error?.message || "");
       if (message.includes("API key not valid") || message.includes("API_KEY_INVALID")) {
-        return res.status(401).json({ error: "YOUNG_GEMINI_API_KEY가 유효하지 않습니다." });
+        return res.status(401).json({ error: INVALID_GOOGLE_KEY, code: "INVALID_API_KEY" });
       }
       return res.status(500).json({ error: message || "분석에 실패했습니다." });
     }
@@ -1004,8 +1141,8 @@ async function startServer() {
 
     const apiKey = getYoungGeminiApiKey(req);
     if (!apiKey) {
-      return res.status(500).json({
-        error: "서버에 YOUNG_GEMINI_API_KEY가 설정되어 있지 않습니다.",
+      return res.status(401).json({
+        error: MISSING_GOOGLE_KEY,
       });
     }
 
@@ -1073,7 +1210,7 @@ async function startServer() {
       console.error("Chair swap summarize error:", error);
       const message = String(error?.message || "");
       if (message.includes("API key not valid") || message.includes("API_KEY_INVALID")) {
-        return res.status(401).json({ error: "YOUNG_GEMINI_API_KEY가 유효하지 않습니다." });
+        return res.status(401).json({ error: INVALID_GOOGLE_KEY, code: "INVALID_API_KEY" });
       }
       return res.status(500).json({ error: message || "요약에 실패했습니다." });
     }
@@ -1087,8 +1224,8 @@ async function startServer() {
 
     const apiKey = getYoungGeminiApiKey(req);
     if (!apiKey) {
-      return res.status(500).json({
-        error: "서버에 YOUNG_GEMINI_API_KEY가 설정되어 있지 않습니다.",
+      return res.status(401).json({
+        error: MISSING_GOOGLE_KEY,
       });
     }
 
@@ -1169,7 +1306,7 @@ async function startServer() {
       console.error("Chair swap image-match error:", error);
       const message = String(error?.message || "");
       if (message.includes("API key not valid") || message.includes("API_KEY_INVALID")) {
-        return res.status(401).json({ error: "YOUNG_GEMINI_API_KEY가 유효하지 않습니다." });
+        return res.status(401).json({ error: INVALID_GOOGLE_KEY, code: "INVALID_API_KEY" });
       }
       return res.status(500).json({ error: message || "이미지 매칭에 실패했습니다." });
     }
@@ -1180,7 +1317,7 @@ async function startServer() {
       const { base64, imageSize, prompt, model } = req.body ?? {};
       const apiKey = getChaeGeminiApiKey(req);
       if (!apiKey) {
-        return res.status(500).json({ error: "CHAE_GEMINI_API_KEY가 설정되어 있지 않습니다." });
+        return res.status(401).json({ error: MISSING_GOOGLE_KEY });
       }
       if (!base64 || !prompt) {
         return res.status(400).json({ error: "이미지 데이터가 필요합니다." });
@@ -1218,6 +1355,9 @@ async function startServer() {
     } catch (error: any) {
       console.error("Upscaler gemini error:", error);
       const message = String(error?.message || "");
+      if (message.includes("API key not valid") || message.includes("API_KEY_INVALID")) {
+        return res.status(401).json({ error: INVALID_GOOGLE_KEY, code: "INVALID_API_KEY" });
+      }
       if (message.includes("429") || message.includes("RESOURCE_EXHAUSTED")) {
         return res.status(429).json({ error: "크레딧이 부족해요 ㅠㅠ 내일 다시 시도해주세요." });
       }
@@ -1231,7 +1371,7 @@ async function startServer() {
       const { base64, outputSize, prompt, quality, model } = req.body ?? {};
       const apiKey = getChaeGptApiKey(req);
       if (!apiKey) {
-        return res.status(500).json({ error: "CHAE_GPT_API_KEY가 설정되어 있지 않습니다." });
+        return res.status(401).json({ error: MISSING_OPENAI_KEY });
       }
       if (!base64 || !prompt) {
         return res.status(400).json({ error: "이미지 데이터가 필요합니다." });
@@ -1259,6 +1399,17 @@ async function startServer() {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         const errText = typeof data?.error?.message === "string" ? data.error.message : JSON.stringify(data);
+        const errCode = typeof data?.error?.code === "string" ? data.error.code : "";
+        if (
+          response.status === 401 ||
+          errCode === "invalid_api_key" ||
+          /invalid[_\s-]?api[_\s-]?key|incorrect api key/i.test(errText)
+        ) {
+          return res.status(401).json({
+            error: "OpenAI API Key가 유효하지 않습니다. 메인 화면에서 키를 다시 등록해 주세요.",
+            code: "INVALID_API_KEY",
+          });
+        }
         if (response.status === 429) {
           return res.status(429).json({ error: "크레딧이 부족해요 ㅠㅠ 내일 다시 시도해주세요." });
         }
@@ -1307,19 +1458,16 @@ async function startServer() {
     }),
   );
 
-  // [3순위] SPA 폴백 — /main·/service → React 앱, / → 리뉴얼 랜딩
+  // [3순위] SPA 폴백 — /, /main, /service → React 앱
   app.get(/.*/, (req, res) => {
     const p = req.path;
     if (p.startsWith("/assets/") || /\.[a-zA-Z0-9]+$/.test(p)) {
       return res.status(404).type("text/plain").send("Not found");
     }
 
-    const spaShell = path.join(distPath, "main", "index.html");
-    const landingShell = path.join(distPath, "index.html");
-    const useSpa = p.startsWith("/main") || p.startsWith("/service");
-
+    const spaShell = path.join(distPath, "index.html");
     res.setHeader("Cache-Control", "no-cache");
-    res.sendFile(useSpa ? spaShell : landingShell, (err) => {
+    res.sendFile(spaShell, (err) => {
       if (err) {
         res.status(404).send("Build files not found.");
       }

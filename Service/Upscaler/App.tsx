@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Upload, Image as ImageIcon, Wand2, Download, RefreshCw, AlertCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 import { upscaleImageByProvider } from './lib/upscaler';
+import ServiceBackButton from '../../src/components/renewal/ServiceBackButton';
 import {
   DEFAULT_UPSCALE_MODE,
   GEMINI_MODE_MODEL_LABEL,
@@ -401,7 +402,10 @@ export default function App() {
         onDragOver={handleDragOver}
       >
         {/* Hero */}
-        <div className="mb-6 flex flex-col items-center gap-0 pb-1 pt-1 text-center">
+        <div className="mb-6 flex flex-col items-center gap-0 pb-1 pt-1 text-center relative w-full">
+          <div className="absolute left-0 top-1/2 -translate-y-1/2">
+            <ServiceBackButton variant="upscaler" />
+          </div>
           <h2 className="hero-wild-font text-3xl font-black leading-none tracking-tight text-slate-950 md:text-4xl lg:text-5xl">
             AI 이미지 업스케일러
           </h2>

@@ -3,6 +3,7 @@ import type { CinematicAnalysis, ViewState } from './types';
 import { SYSTEM_VERSION } from './constants';
 import { analyzeCurrentView } from './services/geminiService';
 import Visualizer from './components/Visualizer';
+import ServiceBackButton from '../../src/components/renewal/ServiceBackButton';
 
 const INITIAL_VIEW_STATE: ViewState = {
   rotateX: 10,
@@ -59,7 +60,11 @@ export default function BongJoonHoApp() {
   }, [runAnalysis]);
 
   return (
-    <div className="flex h-screen w-full bg-white text-slate-900">
+    <div className="relative flex h-screen w-full bg-white text-slate-900">
+      <div className="absolute left-6 top-6 z-30">
+        <ServiceBackButton variant="bong" />
+      </div>
+
       <div className="relative h-full w-3/5 border-r border-slate-200">
         <Visualizer
           viewState={viewState}

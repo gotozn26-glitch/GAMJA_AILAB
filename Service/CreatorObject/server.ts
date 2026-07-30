@@ -18,12 +18,17 @@ async function startServer() {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    const apiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "").trim().replace(/^"|"$/g, "").replace(/^'|'$/g, "");
+    const apiKey =
+      (typeof req.headers["x-google-api-key"] === "string" && req.headers["x-google-api-key"].trim()) ||
+      (typeof req.headers["x-gemini-api-key"] === "string" && req.headers["x-gemini-api-key"].trim()) ||
+      "";
     if (!apiKey) {
-      return res.status(500).json({ error: "GEMINI_API_KEY(or GOOGLE_API_KEY) is not configured on the server." });
+      return res.status(401).json({
+        error: "Google API Key가 없습니다. 메인 화면에서 API Key를 등록해 주세요.",
+      });
     }
 
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey: apiKey.replace(/^"|"$/g, "").replace(/^'|'$/g, "") });
 
     try {
       // 1. 키워드 번역 및 정제
@@ -31,11 +36,13 @@ async function startServer() {
         model: 'gemini-3-flash-preview',
         contents: `You are a creative prompt engineer for an AI image generator.
         Translate the Korean word "${keyword}" into a cute, toy-like English visual description.
+        
         Strict Rules:
         1. If the word is "주사위" or relates to "Dice", translate it as "a cute decorative toy cube with soft rounded edges". NEVER use the word 'dice' or 'gambling'.
         2. Describe the object as a simplified, chunky, and adorable miniature toy version.
-        3. Focus on "kawaii" proportions.
-        4. Output ONLY the English description.`,
+        3. Focus on "kawaii" proportions: oversized features, soft rounded silhouettes, and a charming toy-like structure.
+        4. Do NOT include color words in the translation unless essential.
+        5. Output ONLY the English description.`,
       });
       
       const safeVisualDescription = translationResponse.text?.trim().replace(/["'.]/g, '') || keyword;
@@ -50,9 +57,17 @@ async function startServer() {
 
       const fullPrompt = `A high-quality 3D digital asset of a charming miniature toy version of ${safeVisualDescription}.
       Style & Material: ${styleSuffix}. 
-      Background: ESSENTIAL - Solid, pure, clean flat WHITE background. NO shadows on the floor, NO horizon line.
-      Detail: Focus intensely on the tactile surface qualities (fabric, glass, or clay textures).
-      Composition: ${selectedView}, perfectly centered.`;
+      Background: ESSENTIAL - Solid, pure, clean flat WHITE background. NO shadows on the floor, NO horizon line, just the object isolated on WHITE.
+      Color Guidance: ALWAYS prioritize a high-lightness, bright pastel color palette across all styles. Except for Glass & Hologram style, reflect and incorporate the natural, iconic, or culturally signature colors associated with "${keyword}" (e.g. green/red/gold for a Christmas tree, yellow for a banana) re-interpreted in clean, high-brightness, soft pastel hues so the object's identity is clearly preserved without dark or murky tones.
+      Detail: Focus intensely on the tactile surface qualities. 
+      If fabric/knitted, make sure to use high-lightness bright pastel wool yarns (focused on 1 to 2 main harmonious pastel color families suited for the object's signature look, avoiding plain all-white yarn and strictly avoiding 3+ chaotic colors), detailed crochet stitches, and amigurumi knit patterns clearly like a real handmade doll.
+      If modern 3D, render a sleek digital 3D style using smooth precision-chamfered plastic with a soft satin sheen and subtle glossy reflections, crisp geometric contours with ZERO handmade imperfections, and a clean minimalist high-lightness bright pastel color palette respecting the object's iconic colors.
+      If 3D clay, show rich organic stop-motion claymation details: visible subtle thumbprints, clay dough seams, and handcrafted plasticine texture in bright pastel shades reflecting the object's signature colors.
+      If glass, show high transparency and light refraction with a subtle shimmering iridescent rainbow hologram sheen, combined with 1 gentle pastel color tint (strictly avoiding dark purple/amethyst dominance). 
+      Form: Chunky, simplified, rounded "kawaii" designer toy silhouette.
+      Lighting: Soft studio lighting with crisp highlight reflections that enhance the material's texture without casting heavy dark shadows.
+      Composition: ${selectedView}, perfectly centered.
+      Prohibited: NO text, NO labels, NO people, NO realistic skin, NO photographic noise, NO background elements.`;
 
       const parts: any[] = [{ text: fullPrompt }];
       
@@ -85,7 +100,10 @@ async function startServer() {
       console.error("Gemini Server Error:", error);
       const message = String(error?.message || "");
       if (message.includes("API key not valid") || message.includes("API_KEY_INVALID")) {
-        return res.status(401).json({ error: "Gemini API 키가 유효하지 않습니다. Firebase 환경변수(GEMINI_API_KEY 또는 GOOGLE_API_KEY)를 다시 확인해 주세요." });
+        return res.status(401).json({
+          error: "Google API Key가 유효하지 않습니다. 메인 화면에서 키를 다시 등록해 주세요.",
+          code: "INVALID_API_KEY",
+        });
       }
       if (
         message.includes("429") ||

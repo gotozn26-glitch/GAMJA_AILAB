@@ -3,6 +3,7 @@ import React, { useState, useRef } from 'react';
 import { STYLES } from './constants';
 import { StyleConfig, GeneratedVariation, GenerationStatus } from './types';
 import { geminiService } from './services/geminiService';
+import ServiceBackButton from '../../src/components/renewal/ServiceBackButton';
 
 const AppContent: React.FC = () => {
   const [selectedStyle, setSelectedStyle] = useState<StyleConfig>(STYLES[0]);
@@ -96,6 +97,7 @@ const AppContent: React.FC = () => {
       {/* Header */}
       <header className="h-20 px-8 flex items-center justify-between border-b border-black/10 bg-white z-30 flex-shrink-0">
         <div className="flex items-center gap-3">
+          <ServiceBackButton variant="creator" />
           <h1 className="text-2xl font-black">GAMJA OBJECT</h1>
           <span className="text-[10px] bg-[#FFD600] border border-black text-black px-2 py-0.5 rounded-full font-black uppercase tracking-wider">Experiment</span>
         </div>

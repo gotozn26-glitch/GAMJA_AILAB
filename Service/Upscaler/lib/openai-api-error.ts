@@ -106,7 +106,7 @@ const userCopyFor = (
       return {
         userTitle: 'OpenAI API 키 오류',
         userMessage: 'OpenAI API 키가 올바르지 않거나 만료되었습니다.',
-        userHint: '.env.local 또는 서버 환경변수의 CHAE_GPT_API_KEY를 확인해 주세요.',
+        userHint: '메인 화면에서 OpenAI API Key를 다시 등록해 주세요.',
       };
     case 'rate_limit':
       return {

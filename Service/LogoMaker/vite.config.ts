@@ -4,8 +4,7 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(() => {
   return {
-    /** CHAE_GPT_API_KEY 등 CHAE_ 접두사 env를 import.meta.env에 노출 */
-    envPrefix: ['VITE_', 'CHAE_'],
+    envPrefix: ['VITE_'],
     server: {
       port: 3000,
       host: '0.0.0.0',

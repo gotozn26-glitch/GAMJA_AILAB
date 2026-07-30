@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ApiKeyModal from '../components/renewal/ApiKeyModal';
-import { hasGoogleApiKey, installApiKeyFetchInterceptor } from '../lib/apiKeys';
+import { installApiKeyFetchInterceptor } from '../lib/apiKeys';
 import {
   SERVICES,
   TONE_GRADIENT,
   type ServiceDef,
 } from '../lib/services';
+import { DESIGN_BASE_WIDTH, useViewportScale } from '../hooks/useViewportScale';
 
-const DESIGN_WIDTH = 1280;
+const DESIGN_WIDTH = DESIGN_BASE_WIDTH;
 const DESIGN_HEIGHT = 1071;
 
 /** 메인 화면 pill 레이아웃 (피그마 좌표) */
@@ -28,6 +29,31 @@ const MAIN_LAYOUT: Array<{
   { id: 'scene-creator', left: 5, top: 255, width: 300.27, height: 95.35 },
 ];
 
+function pillStyle(service: ServiceDef, isOutline: boolean, opts?: { stroke?: number; horizontal?: boolean }) {
+  const stroke = opts?.stroke ?? 2.85;
+  const base =
+    service.id === 'scene-creator'
+      ? TONE_GRADIENT.mint
+      : TONE_GRADIENT[service.tone];
+  const gradient = opts?.horizontal
+    ? base.replace('180deg', '90deg')
+    : base;
+
+  if (isOutline) {
+    // 얇은 그라데이션 테두리 — mask padding 대신 border-box 클리핑
+    return {
+      backgroundImage: `linear-gradient(#000, #000), ${gradient}`,
+      backgroundOrigin: 'border-box',
+      backgroundClip: 'padding-box, border-box',
+      border: `${stroke}px solid transparent`,
+    };
+  }
+
+  return {
+    backgroundImage: gradient,
+  };
+}
+
 function MainPill({
   service,
   layout,
@@ -37,10 +63,6 @@ function MainPill({
   layout: (typeof MAIN_LAYOUT)[number];
   onClick: () => void;
 }) {
-  const gradient =
-    service.id === 'scene-creator'
-      ? TONE_GRADIENT.mint
-      : TONE_GRADIENT[service.tone];
   const isOutline = service.style === 'outline';
 
   return (
@@ -49,123 +71,129 @@ function MainPill({
       aria-label={service.label}
       onClick={onClick}
       className="absolute cursor-pointer transition-transform hover:scale-[1.03] active:scale-[0.98]"
-      style={
-        isOutline
-          ? {
-              left: layout.left,
-              top: layout.top,
-              width: layout.width,
-              height: layout.height,
-              borderRadius: 121,
-              padding: 4.27,
-              backgroundImage: gradient,
-              WebkitMask:
-                'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-              WebkitMaskComposite: 'xor',
-              mask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-              maskComposite: 'exclude',
-            }
-          : {
-              left: layout.left,
-              top: layout.top,
-              width: layout.width,
-              height: layout.height,
-              borderRadius: 121,
-              backgroundImage: gradient,
-              border: '2.85px solid transparent',
-            }
-      }
-    >
-      {isOutline ? null : (
-        <span className="absolute inset-0 flex items-center justify-center px-4">
-          <img
-            src={service.mainLabelSrc}
-            alt=""
-            draggable={false}
-            className="max-h-[29px] max-w-[85%] object-contain"
-          />
-        </span>
-      )}
-    </button>
-  );
-}
-
-function MainPillLabel({
-  service,
-  layout,
-}: {
-  service: ServiceDef;
-  layout: (typeof MAIN_LAYOUT)[number];
-}) {
-  if (service.style !== 'outline') return null;
-
-  return (
-    <div
-      className="pointer-events-none absolute flex items-center justify-center"
       style={{
         left: layout.left,
         top: layout.top,
         width: layout.width,
         height: layout.height,
+        borderRadius: 121,
+        ...pillStyle(service, isOutline, { stroke: isOutline ? 3 : 2.85 }),
       }}
     >
-      <img
-        src={service.mainLabelSrc}
-        alt=""
-        draggable={false}
-        className="max-h-[29px] max-w-[85%] object-contain"
-      />
+      <span className="absolute inset-0 flex items-center justify-center px-4">
+        <img
+          src={service.mainLabelSrc}
+          alt=""
+          draggable={false}
+          className="h-[21px] w-auto max-w-[85%] object-contain"
+        />
+      </span>
+    </button>
+  );
+}
+
+function CompactMain({
+  onOpenService,
+  onOpenApiKey,
+}: {
+  onOpenService: (route: string) => void;
+  onOpenApiKey: () => void;
+}) {
+  return (
+    <div className="flex min-h-dvh w-full flex-col items-center justify-center bg-black px-5 py-10">
+      <div className="flex w-full max-w-[340px] flex-col gap-[14px]">
+        {SERVICES.map((service) => {
+          const isOutline = service.style === 'outline';
+          const isKorean = service.id === 'chair-swap' || service.id === 'bongjoonho';
+          return (
+            <button
+              key={service.id}
+              type="button"
+              aria-label={service.label}
+              onClick={() => onOpenService(service.route)}
+              className="relative flex h-[72px] w-full cursor-pointer items-center justify-center rounded-full transition-transform active:scale-[0.98]"
+              style={pillStyle(service, isOutline, { stroke: 2, horizontal: true })}
+            >
+              <img
+                src={service.mainLabelSrc}
+                alt=""
+                draggable={false}
+                className="w-auto object-contain"
+                style={{
+                  height: isKorean ? 26 : 22,
+                  maxWidth: '78%',
+                }}
+              />
+            </button>
+          );
+        })}
+      </div>
+
+      <button
+        type="button"
+        onClick={onOpenApiKey}
+        className="mt-10 flex w-full max-w-[340px] cursor-pointer flex-col items-center gap-3"
+        aria-label="API Key 연결하기"
+      >
+        <img
+          src="/renewal/main/009-Let-s-connect-your-API-key.svg"
+          alt="Let's connect your API key"
+          className="h-[14px] w-auto max-w-[280px] object-contain"
+          draggable={false}
+        />
+        <img
+          src="/renewal/main/008-Arrow-3.svg"
+          alt=""
+          className="h-[40px] w-[46px] object-contain"
+          draggable={false}
+        />
+      </button>
     </div>
   );
 }
 
 export default function Home() {
   const navigate = useNavigate();
-  const [scale, setScale] = useState(1);
+  const { scale, isCompact, width, height } = useViewportScale(DESIGN_WIDTH);
   const [apiModalOpen, setApiModalOpen] = useState(false);
-  const [pendingRoute, setPendingRoute] = useState<string | null>(null);
 
   useEffect(() => {
     return installApiKeyFetchInterceptor();
   }, []);
 
-  useEffect(() => {
-    const update = () => {
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-      setScale(Math.min(width / DESIGN_WIDTH, height / DESIGN_HEIGHT, 1));
-    };
-    update();
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
-  }, []);
-
-  const openService = (route: string) => {
-    if (!hasGoogleApiKey()) {
-      setPendingRoute(route);
-      setApiModalOpen(true);
-      return;
-    }
-    navigate(route);
-  };
-
+  const fittedScale = Math.min(scale, height / DESIGN_HEIGHT, 1);
   const serviceById = Object.fromEntries(SERVICES.map((s) => [s.id, s])) as Record<
     ServiceDef['id'],
     ServiceDef
   >;
 
+  if (isCompact || width < 900) {
+    return (
+      <>
+        <CompactMain
+          onOpenService={(route) => navigate(route)}
+          onOpenApiKey={() => setApiModalOpen(true)}
+        />
+        <ApiKeyModal
+          open={apiModalOpen}
+          onClose={() => setApiModalOpen(false)}
+          onRegistered={() => setApiModalOpen(false)}
+        />
+      </>
+    );
+  }
+
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-black">
+    <div className="relative min-h-dvh w-full overflow-hidden bg-black">
       <div
         className="absolute left-1/2 top-1/2"
         style={{
           width: DESIGN_WIDTH,
           height: DESIGN_HEIGHT,
-          transform: `translate(-50%, -50%) scale(${scale})`,
+          transform: `translate(-50%, -50%) scale(${fittedScale})`,
           transformOrigin: 'center center',
         }}
       >
-        {/* MENUM */}
         <div className="absolute left-[165px] top-[213px] h-[350px] w-[949px]">
           {MAIN_LAYOUT.map((layout) => {
             const service = serviceById[layout.id];
@@ -174,21 +202,16 @@ export default function Home() {
                 <MainPill
                   service={service}
                   layout={layout}
-                  onClick={() => openService(service.route)}
+                  onClick={() => navigate(service.route)}
                 />
-                <MainPillLabel service={service} layout={layout} />
               </div>
             );
           })}
         </div>
 
-        {/* Let's connect your API key */}
         <button
           type="button"
-          onClick={() => {
-            setPendingRoute(null);
-            setApiModalOpen(true);
-          }}
+          onClick={() => setApiModalOpen(true)}
           className="absolute inset-0 cursor-pointer bg-transparent"
           style={{ left: 578, top: 476, width: 530, height: 81 }}
           aria-label="API Key 연결하기"
@@ -210,19 +233,8 @@ export default function Home() {
 
       <ApiKeyModal
         open={apiModalOpen}
-        onClose={() => {
-          setApiModalOpen(false);
-          setPendingRoute(null);
-        }}
-        onRegistered={() => {
-          if (!hasGoogleApiKey()) return;
-          setApiModalOpen(false);
-          if (pendingRoute) {
-            const route = pendingRoute;
-            setPendingRoute(null);
-            navigate(route);
-          }
-        }}
+        onClose={() => setApiModalOpen(false)}
+        onRegistered={() => setApiModalOpen(false)}
       />
     </div>
   );

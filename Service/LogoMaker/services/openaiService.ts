@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { DesignConfig } from "../types";
+import { notifyInvalidApiKey } from "../../../src/lib/apiKeys";
 
 type LogoStrategy = {
   coreConcept: string;
@@ -94,7 +95,7 @@ const aspectRatioToSize: Record<DesignConfig["aspectRatio"], string> = {
   "16:9": "1536x1024",
 };
 
-const normalizeEnvValue = (value?: string) =>
+const normalizeKeyValue = (value?: string) =>
   (value || "").trim().replace(/^"|"$/g, "").replace(/^'|'$/g, "");
 
 const readSessionOpenAiKey = (): string => {
@@ -102,18 +103,17 @@ const readSessionOpenAiKey = (): string => {
     const raw = sessionStorage.getItem("gamja.apiKeys.session");
     if (!raw) return "";
     const parsed = JSON.parse(raw) as { openai?: string };
-    return normalizeEnvValue(parsed.openai);
+    return normalizeKeyValue(parsed.openai);
   } catch {
     return "";
   }
 };
 
 const getClient = () => {
-  const apiKey =
-    readSessionOpenAiKey() || normalizeEnvValue(import.meta.env.CHAE_GPT_API_KEY);
+  const apiKey = readSessionOpenAiKey();
   if (!apiKey) {
     throw new Error(
-      "OpenAI API Key가 없습니다. 메인에서 OpenAI API Key를 입력하거나, CHAE_GPT_API_KEY를 설정해 주세요.",
+      "OpenAI API Key가 없습니다. 메인 화면에서 OpenAI API Key를 등록해 주세요.",
     );
   }
 
@@ -133,6 +133,15 @@ const plannerModelCandidates = [
 const primaryImageModel = import.meta.env.VITE_OPENAI_IMAGE_MODEL || "gpt-image-2";
 
 const formatOpenAiError = (err: any) => {
+  const blob = `${err?.code ?? ""} ${err?.type ?? ""} ${err?.message ?? ""}`.toLowerCase();
+  if (
+    err?.status === 401 ||
+    blob.includes("invalid_api_key") ||
+    blob.includes("incorrect api key")
+  ) {
+    notifyInvalidApiKey();
+  }
+
   const parts = [
     err?.status ? `HTTP ${err.status}` : "",
     err?.code ? `code=${err.code}` : "",

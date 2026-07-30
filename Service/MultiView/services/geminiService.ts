@@ -1,4 +1,5 @@
 import { Rotation } from '../types';
+import { notifyInvalidApiKey } from '../../../src/lib/apiKeys';
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
   const res = await fetch(url, {
@@ -6,10 +7,35 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify(body),
   });
-  const data = (await res.json()) as T & { error?: string };
+  const text = await res.text();
+  let data = {} as T & { error?: string; code?: string };
+  if (text) {
+    try {
+      data = JSON.parse(text) as T & { error?: string; code?: string };
+    } catch {
+      throw new Error(
+        `API 응답을 해석하지 못했습니다. (${res.status}) ${text.slice(0, 120)}`,
+      );
+    }
+  } else if (!res.ok) {
+    if (res.status === 401 || res.status === 403) {
+      notifyInvalidApiKey();
+      throw new Error('API_KEY_RESET');
+    }
+    throw new Error(
+      'API 서버 응답이 비어 있습니다. npm run dev 로 API 서버(8080)를 켜 주세요.',
+    );
+  }
+
   if (!res.ok) {
     const msg = typeof data?.error === 'string' ? data.error : '요청에 실패했습니다.';
-    if (msg.includes('Requested entity was not found') || msg.includes('API_KEY')) {
+    if (
+      data?.code === 'INVALID_API_KEY' ||
+      msg.includes('Requested entity was not found') ||
+      msg.includes('API_KEY') ||
+      /유효하지\s*않/i.test(msg)
+    ) {
+      notifyInvalidApiKey();
       throw new Error('API_KEY_RESET');
     }
     throw new Error(msg);

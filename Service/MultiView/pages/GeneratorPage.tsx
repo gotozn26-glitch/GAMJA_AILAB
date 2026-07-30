@@ -422,7 +422,7 @@ export const GeneratorPage: React.FC = () => {
                       <p className="text-2xl font-black text-gray-900 tracking-tight italic">
                         {isRetouching ? "이미지 리터칭 수행 중" : "3D 공간 벡터 동기화 중"}
                       </p>
-                      <p className="text-gray-400 mt-2 font-medium">강아지의 시선을 정면 프레임에 고정하고 물리적 측면을 계산하고 있습니다.</p>
+                      <p className="text-gray-400 mt-2 font-medium">오브젝트의 시선을 정면 프레임에 고정하고 물리적 측면을 계산하고 있습니다.</p>
                     </div>
                  </div>
                ) : results.length > 0 ? (
@@ -435,6 +435,39 @@ export const GeneratorPage: React.FC = () => {
                              {results[0].view}
                           </span>
                        </div>
+
+                       {/* Front View Thumbnail Overlay */}
+                       {frontImage && (
+                          <div className="absolute bottom-6 right-6 z-20 bg-white/95 backdrop-blur-md border border-gray-200/80 shadow-2xl rounded-3xl p-3 flex items-center gap-3 transition-all hover:scale-105">
+                             <div className="relative w-20 h-20 sm:w-24 sm:h-24 bg-white rounded-2xl border border-gray-100 overflow-hidden flex items-center justify-center p-1.5 shadow-inner shrink-0">
+                                <img src={frontImage} alt="Front View" className="w-full h-full object-contain" />
+                                <span className="absolute top-1 left-1 bg-red-500/90 text-white text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider backdrop-blur-sm">
+                                   FRONT
+                                </span>
+                             </div>
+                             <div className="flex flex-col pr-1 gap-1.5">
+                                <div className="flex flex-col">
+                                   <span className="text-[11px] font-black text-gray-800 tracking-tight">정면 고정 뷰</span>
+                                   <span className="text-[9px] font-bold text-gray-400">Fixed Front View</span>
+                                </div>
+                                <button
+                                   type="button"
+                                   title="정면 뷰 이미지 다운로드"
+                                   onClick={(e) => {
+                                      e.stopPropagation();
+                                      const link = document.createElement('a');
+                                      link.href = frontImage;
+                                      link.download = `front_view_${objectName.trim() || 'fixed'}.png`;
+                                      link.click();
+                                   }}
+                                   className="flex items-center justify-center gap-1.5 bg-gray-900 hover:bg-black text-white px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all shadow-md active:scale-95 cursor-pointer"
+                                >
+                                   <span className="material-symbols-outlined text-sm">download</span>
+                                   <span>저장</span>
+                                </button>
+                             </div>
+                          </div>
+                       )}
                     </div>
                     
                     <div className="w-full max-w-[600px] flex flex-col gap-6">

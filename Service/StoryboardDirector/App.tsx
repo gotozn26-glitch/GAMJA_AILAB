@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { StoryboardLayer, ReferenceSlot, ProjectInfo, StylePreset } from './types';
 import { generateDirectorImage, analyzeStoryboard } from './services/geminiService';
+import ServiceBackButton from '../../src/components/renewal/ServiceBackButton';
 import { 
   Info, 
   Sparkles, 
@@ -403,6 +404,7 @@ const App: React.FC = () => {
       {/* Header */}
       <header className="flex items-center justify-between px-8 py-4 glass-panel border-b-0 m-4 rounded-2xl z-50">
         <div className="flex items-center gap-4">
+          <ServiceBackButton variant="storyboard" />
           <div className="w-10 h-10 flex items-center justify-center glass-button rounded-xl">
             <Sparkles className="w-6 h-6 text-white" strokeWidth={1.5} />
           </div>

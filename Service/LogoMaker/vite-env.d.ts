@@ -1,8 +1,8 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  readonly CHAE_GPT_API_KEY?: string;
   readonly VITE_OPENAI_PLANNER_MODEL?: string;
+  readonly VITE_OPENAI_IMAGE_MODEL?: string;
 }
 
 interface ImportMeta {
