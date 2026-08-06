@@ -1,6 +1,24 @@
 /** Hard maximum for output longer side (px). Values above this are rejected — not clamped. */
 export const MAX_OUTPUT_LONGER_SIDE = 4096;
 
+/** Preset scale chips shown in the UI. */
+export const PRESET_SCALES = [2, 4, 6, 8] as const;
+
+/** Largest preset scale that keeps output ≤ max, or null if even 2× exceeds. */
+export const maxSafePresetScale = (
+  sourceWidth: number,
+  sourceHeight: number,
+  maxLongerSide = MAX_OUTPUT_LONGER_SIDE
+): (typeof PRESET_SCALES)[number] | null => {
+  const srcLonger = Math.max(sourceWidth, sourceHeight);
+  if (srcLonger < 1) return null;
+  for (let i = PRESET_SCALES.length - 1; i >= 0; i -= 1) {
+    const s = PRESET_SCALES[i];
+    if (srcLonger * s <= maxLongerSide) return s;
+  }
+  return null;
+};
+
 /** Minimum longer side sent to Gemini (pre-upscale + generation). Smaller deliverables are downscaled after. */
 export const MIN_GENERATION_LONGER_SIDE = 1024;
 

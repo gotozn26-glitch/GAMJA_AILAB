@@ -15,7 +15,9 @@ import {
 } from './lib/upscale-mode';
 import {
   MAX_OUTPUT_LONGER_SIDE,
+  PRESET_SCALES,
   buildOutputSizeOverLimitHint,
+  maxSafePresetScale,
   planOutputSize,
   isOutputSizeRejected,
   validateOutputSize,
@@ -58,7 +60,7 @@ export default function App() {
   const [originalSize, setOriginalSize] = useState<{width: number, height: number} | null>(null);
   
   // Options
-  const [scale, setScale] = useState<number>(4);
+  const [scale, setScale] = useState<number>(2);
   const [upscaleMode, setUpscaleMode] = useState<UpscaleMode>(DEFAULT_UPSCALE_MODE);
   const [processingMode, setProcessingMode] = useState<UpscaleMode | null>(null);
   const [resultMode, setResultMode] = useState<UpscaleMode | null>(null);
@@ -179,6 +181,18 @@ export default function App() {
     img.onload = () => {
       setOriginalSize({ width: img.width, height: img.height });
       setOriginalMaxDim(Math.max(img.width, img.height));
+      // 기본 4배 등으로 긴 변이 4096을 넘으면 버튼이 막히므로, 가능한 최대 배율로 맞춤
+      const safe = maxSafePresetScale(img.width, img.height);
+      if (safe != null) {
+        setScale(safe);
+        setShowCustomSize(false);
+        setCustomLongerSide('');
+      } else {
+        // 2배도 초과 → 사용자 지정으로 최대치 제안
+        setShowCustomSize(true);
+        setCustomLongerSide(String(MAX_OUTPUT_LONGER_SIDE));
+        setScale(2);
+      }
     };
     img.src = objectUrl;
   };
@@ -463,29 +477,35 @@ export default function App() {
                   <div className="flex min-w-fit shrink-0 flex-col gap-2">
                     <span className="pl-1 text-xs font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap">확대 배율 <span className="text-[10px] font-normal">(긴 변 최대 {MAX_OUTPUT_LONGER_SIDE})</span></span>
                     <div className="inline-flex flex-wrap items-center gap-1 rounded-lg bg-[#f6f7f8] p-1">
-                      {[
-                        { value: 2, label: '2배' },
-                        { value: 4, label: '4배' },
-                        { value: 6, label: '6배' },
-                        { value: 8, label: '8배' }
-                      ].map((s) => (
+                      {PRESET_SCALES.map((value) => {
+                        const overLimit =
+                          srcLongerSideForHint > 0 &&
+                          srcLongerSideForHint * value > MAX_OUTPUT_LONGER_SIDE;
+                        const label = `${value}배`;
+                        return (
                         <button
-                          key={s.value}
+                          key={value}
                           onClick={() => {
-                            setScale(s.value);
+                            setScale(value);
                             setShowCustomSize(false);
                             setCustomLongerSide("");
                           }}
-                          disabled={controlsLocked}
+                          disabled={controlsLocked || overLimit}
+                          title={
+                            overLimit
+                              ? `결과 긴 변이 ${MAX_OUTPUT_LONGER_SIDE}px를 넘어 선택할 수 없습니다.`
+                              : undefined
+                          }
                           className={`shrink-0 whitespace-nowrap rounded-md px-4 py-2 text-center text-sm font-bold leading-normal transition-all disabled:cursor-not-allowed disabled:opacity-40 ${
-                            scale === s.value && !showCustomSize
+                            scale === value && !showCustomSize
                               ? 'bg-white text-blue-600 shadow-sm'
                               : 'text-slate-500 hover:text-slate-900'
                           }`}
                         >
-                          {s.label}
+                          {label}
                         </button>
-                      ))}
+                        );
+                      })}
 
                       {/* Inline custom-size chip — same width pill as the other scale buttons; swaps to an
                           input when active so the layout doesn't shift. */}
@@ -645,7 +665,13 @@ export default function App() {
                   onClick={() => void handleUpscale()}
                   disabled={isProcessing || outputSizeBlocked}
                   aria-busy={isProcessing}
-                  className="flex w-full max-w-md items-center justify-center gap-2 whitespace-nowrap rounded-2xl bg-blue-600 px-8 py-4 text-base font-bold text-white shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 hover:bg-blue-700 disabled:cursor-wait disabled:opacity-90 md:min-w-[min(100%,22rem)]"
+                  className={`flex w-full max-w-md items-center justify-center gap-2 whitespace-nowrap rounded-2xl bg-blue-600 px-8 py-4 text-base font-bold text-white shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 hover:bg-blue-700 disabled:opacity-90 md:min-w-[min(100%,22rem)] ${
+                    isProcessing
+                      ? 'cursor-wait'
+                      : outputSizeBlocked
+                        ? 'cursor-not-allowed opacity-50'
+                        : ''
+                  }`}
                 >
                   {isProcessing ? (
                     <>
